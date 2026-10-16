@@ -19,9 +19,11 @@ const EnvSchema = z.object({
   MEDIAMTX_HLS_URL: z.string().url().default('http://localhost:8888'),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
-  VISION_PROVIDER: z.enum(['anthropic']).default('anthropic'),
+  VISION_PROVIDER: z.enum(['anthropic', 'mock']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   VISION_MODEL: z.string().default('claude-sonnet-5-5'),
+  VISION_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),
+  INVENTORY_REFRESH_EVERY: z.coerce.number().int().positive().default(20),
   ANALYSIS_FPS: num(4),
   PERSON_CONFIDENCE: num(0.45),
   ROI_OVERLAP_MIN: num(0.15),
@@ -31,6 +33,7 @@ const EnvSchema = z.object({
   STABLE_DIFF_MAX: num(0.01),
   SCENE_DIFF_MIN: num(0.004),
   MAX_OCCLUSION_SECONDS: num(600),
+  STABLE_MAX_WAIT_SECONDS: num(15),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -124,12 +124,8 @@
           "name": "cameras_store_id_stores_id_fk",
           "tableFrom": "cameras",
           "tableTo": "stores",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -137,12 +133,8 @@
           "name": "cameras_baseline_snapshot_id_snapshots_id_fk",
           "tableFrom": "cameras",
           "tableTo": "snapshots",
-          "columnsFrom": [
-            "baseline_snapshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["baseline_snapshot_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -152,16 +144,12 @@
         "cameras_store_id_unique": {
           "name": "cameras_store_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "store_id"
-          ]
+          "columns": ["store_id"]
         },
         "cameras_stream_key_unique": {
           "name": "cameras_stream_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "stream_key"
-          ]
+          "columns": ["stream_key"]
         }
       },
       "policies": {},
@@ -278,12 +266,8 @@
           "name": "events_camera_id_cameras_id_fk",
           "tableFrom": "events",
           "tableTo": "cameras",
-          "columnsFrom": [
-            "camera_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["camera_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -291,12 +275,8 @@
           "name": "events_before_snapshot_id_snapshots_id_fk",
           "tableFrom": "events",
           "tableTo": "snapshots",
-          "columnsFrom": [
-            "before_snapshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["before_snapshot_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -304,12 +284,8 @@
           "name": "events_after_snapshot_id_snapshots_id_fk",
           "tableFrom": "events",
           "tableTo": "snapshots",
-          "columnsFrom": [
-            "after_snapshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["after_snapshot_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -398,12 +374,8 @@
           "name": "snapshots_camera_id_cameras_id_fk",
           "tableFrom": "snapshots",
           "tableTo": "cameras",
-          "columnsFrom": [
-            "camera_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["camera_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -465,41 +437,22 @@
     "public.camera_status": {
       "name": "camera_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "online",
-        "offline"
-      ]
+      "values": ["pending", "online", "offline"]
     },
     "public.event_severity": {
       "name": "event_severity",
       "schema": "public",
-      "values": [
-        "alert",
-        "attention",
-        "info",
-        "error"
-      ]
+      "values": ["alert", "attention", "info", "error"]
     },
     "public.event_type": {
       "name": "event_type",
       "schema": "public",
-      "values": [
-        "removed",
-        "moved",
-        "no_change",
-        "analysis_failed"
-      ]
+      "values": ["removed", "moved", "no_change", "analysis_failed"]
     },
     "public.snapshot_kind": {
       "name": "snapshot_kind",
       "schema": "public",
-      "values": [
-        "baseline",
-        "before",
-        "after",
-        "calibration"
-      ]
+      "values": ["baseline", "before", "after", "calibration"]
     }
   },
   "schemas": {},

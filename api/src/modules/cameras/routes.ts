@@ -8,6 +8,9 @@ import { isUniqueViolation } from '../../lib/pg-errors';
 import { generateStreamKey } from '../../lib/stream-key';
 import { removeCameraDir } from '../../storage';
 import { kickPublisher } from '../mediamtx/client';
+import { refreshInventory } from '../../pipeline/analysis';
+import { getServices } from '../../services';
+import { calibrate, isCalibrating } from './calibration';
 import { rtmpInfo, serializeCamera } from './serializer';
 
 const IdParams = z.object({ id: z.uuid() });
@@ -138,5 +141,60 @@ export const cameraRoutes: FastifyPluginAsyncZod = async (app) => {
     void kickPublisher(old.streamKey);
     bus.emit('camera.updated', { cameraId: cam!.id });
     return { camera: await dtoFor(cam!), rtmp: rtmpInfo(cam!.streamKey) };
+  });
+
+  app.get(
+    '/cameras/:id/snapshot',
+    { schema: { params: IdParams }, logLevel: 'warn' },
+    async (req, reply) => {
+      const cam = await db.query.cameras.findFirst({
+        where: eq(cameras.id, req.params.id),
+        columns: { id: true, status: true },
+      });
+      if (!cam) throw app.httpErrors.notFound('Câmera não encontrada');
+      const worker = getServices().workers.get(cam.id);
+      const jpeg = worker ? await worker.currentFrame(4000) : null;
+      if (!jpeg) throw app.httpErrors.notFound('Sem frame disponível (câmera offline?)');
+      return reply
+        .header('content-type', 'image/jpeg')
+        .header('cache-control', 'no-store')
+        .send(jpeg);
+    },
+  );
+
+  app.post(
+    '/cameras/:id/calibrate',
+    {
+      schema: {
+        params: IdParams,
+        body: z
+          .object({ force: z.boolean().optional().default(false) })
+          .optional()
+          .default({ force: false }),
+      },
+    },
+    async (req, reply) => {
+      const cam = await db.query.cameras.findFirst({
+        where: eq(cameras.id, req.params.id),
+        columns: { id: true, status: true },
+      });
+      if (!cam) throw app.httpErrors.notFound('Câmera não encontrada');
+      if (cam.status !== 'online')
+        throw app.httpErrors.conflict('A câmera precisa estar online para calibrar');
+      if (isCalibrating(cam.id)) throw app.httpErrors.conflict('Calibração já em andamento');
+      void calibrate(cam.id, req.body.force, req.log);
+      return reply.code(202).send({ accepted: true });
+    },
+  );
+
+  app.post('/cameras/:id/inventory/refresh', { schema: { params: IdParams } }, async (req) => {
+    try {
+      const inventory = await refreshInventory(req.params.id, getServices().vision, req.log);
+      if (!inventory) throw app.httpErrors.notFound('Câmera não encontrada');
+      return { inventory };
+    } catch (err) {
+      if (err instanceof Error && 'statusCode' in err) throw err;
+      throw app.httpErrors.badRequest(err instanceof Error ? err.message : String(err));
+    }
   });
 };
