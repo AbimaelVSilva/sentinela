@@ -9,7 +9,12 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import { env } from './config/env';
+import { cameraRoutes } from './modules/cameras/routes';
+import { eventRoutes } from './modules/events/routes';
+import { sseRoutes } from './modules/events/sse';
 import { healthRoutes } from './modules/health/routes';
+import { mediamtxAuthRoutes } from './modules/mediamtx/auth';
+import { storeRoutes } from './modules/stores/routes';
 
 export async function buildApp() {
   const app = Fastify({
@@ -23,7 +28,6 @@ export async function buildApp() {
             }
           : undefined,
     },
-    disableRequestLogging: false,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
@@ -40,6 +44,11 @@ export async function buildApp() {
   await app.register(fastifyStatic, { root: env.STORAGE_DIR, prefix: '/files/' });
 
   await app.register(healthRoutes);
+  await app.register(storeRoutes);
+  await app.register(cameraRoutes);
+  await app.register(eventRoutes);
+  await app.register(sseRoutes);
+  await app.register(mediamtxAuthRoutes);
 
   return app;
 }
