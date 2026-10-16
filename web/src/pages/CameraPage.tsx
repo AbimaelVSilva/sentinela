@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { CalibrationPanel } from '@/components/CalibrationPanel';
 import { CameraActions } from '@/components/CameraActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EventStepper } from '@/components/EventStepper';
 import { InventoryCard } from '@/components/InventoryCard';
 import { CopyField } from '@/components/CopyField';
 import { QueryError } from '@/components/QueryError';
@@ -76,10 +77,10 @@ export function CameraPage() {
     );
   }
 
-  const eventsPanel = <EventsPanelPlaceholder />;
+  const eventsPanel = <EventStepper cameraId={camera.id} />;
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="flex h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden">
       <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[1200px] space-y-4 p-4">
           <CameraHeader
@@ -143,10 +144,6 @@ export function CameraPage() {
       </Sheet>
     </div>
   );
-}
-
-function EventsPanelPlaceholder() {
-  return <div className="p-4 text-sm text-muted-foreground">Eventos (em breve)</div>;
 }
 
 function CameraHeader({

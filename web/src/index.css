@@ -143,3 +143,11 @@
     @apply font-sans;
   }
 }
+
+/* Toasts de eventos coloridos pelos tokens de severidade. */
+[data-sonner-toast].toast-severity-alert {
+  border-left: 4px solid var(--severity-alert) !important;
+}
+[data-sonner-toast].toast-severity-attention {
+  border-left: 4px solid var(--severity-attention) !important;
+}

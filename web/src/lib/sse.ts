@@ -65,20 +65,25 @@ function handleState(qc: QueryClient, msg: CameraStateMsg) {
 function handleCalibration(qc: QueryClient, msg: CalibrationMsg) {
   qc.setQueryData(queryKeys.calibration(msg.cameraId), msg);
   if (msg.stage === 'done' || msg.stage === 'failed') {
-    void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId) });
+    void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId), exact: true });
   }
 }
 
 function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
   const { event } = msg;
-  qc.setQueryData<InfiniteData<EventsPage>>(queryKeys.events(msg.cameraId), (old) => {
-    if (!old || old.pages.length === 0) return old;
-    if (old.pages.some((p) => p.items.some((e) => e.id === event.id))) return old;
-    const [first, ...rest] = old.pages;
-    return { ...old, pages: [{ ...first!, items: [event, ...first!.items] }, ...rest] };
-  });
+  // A lista pode estar em cache com filtros diferentes: ['cameras', id, 'events', { types }].
+  for (const q of qc.getQueryCache().findAll({ queryKey: queryKeys.events(msg.cameraId) })) {
+    const filter = q.queryKey[3] as { types?: string[] } | undefined;
+    if (filter?.types?.length && !filter.types.includes(event.type)) continue;
+    qc.setQueryData<InfiniteData<EventsPage>>(q.queryKey, (old) => {
+      if (!old || old.pages.length === 0) return old;
+      if (old.pages.some((p) => p.items.some((e) => e.id === event.id))) return old;
+      const [first, ...rest] = old.pages;
+      return { ...old, pages: [{ ...first!, items: [event, ...first!.items] }, ...rest] };
+    });
+  }
   void qc.invalidateQueries({ queryKey: queryKeys.stores });
-  void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId) });
+  void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId), exact: true });
 
   if (!notify) return;
   if (event.severity === 'alert') {
