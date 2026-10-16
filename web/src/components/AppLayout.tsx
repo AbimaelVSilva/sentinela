@@ -1,9 +1,12 @@
 import { ShieldCheckIcon } from 'lucide-react';
 import { Link, Outlet } from 'react-router';
+import { useSSE } from '@/lib/sse';
 import { ApiStatus } from './ApiStatus';
 import { ThemeToggle } from './ThemeToggle';
 
 export function AppLayout() {
+  // Uma conexão SSE global mantém status, estados e eventos atualizados em todas as telas.
+  useSSE();
   return (
     <div className="flex min-h-svh flex-col">
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
