@@ -53,14 +53,14 @@ export class AnthropicVisionProvider implements VisionProvider {
   private readonly client: Anthropic;
 
   constructor(
-    private readonly opts: { apiKey?: string; model: string; effort: Effort },
+    private readonly opts: { apiKey?: string; model: string; effort: Effort; client?: Anthropic },
     private readonly log: FastifyBaseLogger,
   ) {
     // Sem chave explícita o SDK resolve credenciais do ambiente (ANTHROPIC_API_KEY,
     // ANTHROPIC_AUTH_TOKEN ou perfil do `ant auth login`).
-    this.client = new Anthropic(
-      opts.apiKey ? { apiKey: opts.apiKey, maxRetries: 2 } : { maxRetries: 2 },
-    );
+    this.client =
+      opts.client ??
+      new Anthropic(opts.apiKey ? { apiKey: opts.apiKey, maxRetries: 2 } : { maxRetries: 2 });
   }
 
   validateScene(image: Buffer): Promise<VisionResult<SceneValidation>> {

@@ -62,7 +62,12 @@ function cachedMask(roi: RoiPolygon | null | undefined, w: number, h: number) {
   return m;
 }
 
-/** Recorta a bbox da ROI, reduz, converte para cinza, aplica blur; devolve RGBA. */
+/**
+ * Recorta a bbox da ROI, reduz e aplica blur; devolve RGBA.
+ * Mantém a cor de propósito: em cinza, um produto com a mesma luminância do fundo
+ * (ex.: lata vermelha em prateleira cinza) desapareceria e a retirada passaria
+ * batida pelo pré-filtro. O pixelmatch compara luminância e crominância.
+ */
 async function prepare(
   jpeg: Buffer,
   roi: RoiPolygon | null | undefined,
@@ -70,19 +75,15 @@ async function prepare(
 ) {
   const info = await imageInfo(jpeg);
   let img = sharp(jpeg).extract(regionToPixels(roiBoundingBox(roi), info));
-  img = img.resize({ width: o.width }).greyscale();
+  img = img.resize({ width: o.width });
   if (o.blur > 0.3) img = img.blur(o.blur);
-  const { data: grey, info: out } = await img.raw().toBuffer({ resolveWithObject: true });
-  // O pixelmatch trabalha com RGBA: replica o canal de cinza.
-  const channels = out.channels;
-  const data = new Uint8Array(out.width * out.height * 4);
-  for (let i = 0, j = 0; i < grey.length; i += channels, j += 4) {
-    const v = grey[i]!;
-    data[j] = v;
-    data[j + 1] = v;
-    data[j + 2] = v;
-    data[j + 3] = 255;
-  }
+  const { data, info: out } = await img
+    .removeAlpha()
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  if (out.channels !== 4)
+    throw new Error(`scene-diff: esperado RGBA, recebido ${out.channels} canais`);
   return { data, width: out.width, height: out.height };
 }
 
