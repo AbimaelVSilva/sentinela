@@ -40,7 +40,7 @@ services:
       MTX_WEBRTCADDITIONALHOSTS: ${PUBLIC_HOST:?defina PUBLIC_HOST}
       MTX_AUTHHTTPADDRESS: http://api:3333/mediamtx/auth
     ports:
-      - '127.0.0.1:11935:1935' # RTMP (só local; abra no firewall para câmera real)
+      - '1935:1935' # RTMP público (ingest das câmeras; o hook de auth recusa chaves desconhecidas)
       - '127.0.0.1:18554:8554' # RTSP
       - '127.0.0.1:18889:8889' # WebRTC/WHEP (via nginx)
       - '127.0.0.1:18888:8888' # HLS (via nginx)
