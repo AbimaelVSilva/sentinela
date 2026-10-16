@@ -5,13 +5,17 @@ import {
   ListIcon,
   MoreVerticalIcon,
   RadioTowerIcon,
+  SquareDashedIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
+import { CalibrationPanel } from '@/components/CalibrationPanel';
+import { CameraActions } from '@/components/CameraActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InventoryCard } from '@/components/InventoryCard';
 import { CopyField } from '@/components/CopyField';
 import { QueryError } from '@/components/QueryError';
 import { RoiOverlay } from '@/components/RoiOverlay';
@@ -97,6 +101,20 @@ export function CameraPage() {
             </div>
           </VideoPlayer>
 
+          <CameraActions camera={camera} />
+          <CalibrationPanel camera={camera} />
+
+          {!camera.roi && (
+            <Alert className="border-severity-attention/50">
+              <SquareDashedIcon className="text-severity-attention" />
+              <AlertTitle>Área da prateleira não definida</AlertTitle>
+              <AlertDescription>
+                Sem a área, qualquer pessoa no quadro inteiro dispara a análise. Use “Editar área da
+                prateleira” para marcar só a região com produtos.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {camera.stream?.isH265 && (
             <Alert className="border-severity-attention/50">
               <TriangleAlertIcon className="text-severity-attention" />
@@ -107,6 +125,8 @@ export function CameraPage() {
               </AlertDescription>
             </Alert>
           )}
+
+          <InventoryCard camera={camera} />
         </div>
       </div>
 
