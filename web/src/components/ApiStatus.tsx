@@ -11,7 +11,13 @@ export function ApiStatus() {
     retry: false,
   });
 
-  const state = isPending ? 'loading' : isError ? 'down' : data.status === 'ok' ? 'ok' : 'degraded';
+  const state = isPending
+    ? 'loading'
+    : isError
+      ? 'down'
+      : data.status === 'ok' && data.detector
+        ? 'ok'
+        : 'degraded';
   const label = {
     loading: 'Verificando API…',
     down: 'API offline',
@@ -36,8 +42,14 @@ export function ApiStatus() {
       </TooltipTrigger>
       <TooltipContent>
         {data ? (
-          <span>
-            Banco: {data.db ? 'ok' : 'falha'} · MediaMTX: {data.mediamtx ? 'ok' : 'falha'}
+          <span className="grid gap-0.5">
+            <span>
+              Banco: {data.db ? 'ok' : 'falha'} · MediaMTX: {data.mediamtx ? 'ok' : 'falha'}
+            </span>
+            <span>
+              Detector YOLO: {data.detector ? 'ok' : 'modelo ausente'} · IA:{' '}
+              {data.vision.provider === 'mock' ? 'simulada (mock)' : data.vision.model}
+            </span>
           </span>
         ) : (
           <span>Sem resposta de /health</span>

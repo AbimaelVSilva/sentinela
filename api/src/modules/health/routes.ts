@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { env } from '../../config/env';
+import fs from 'node:fs';
 import { db } from '../../db/client';
 
 const HealthResponse = z.object({
@@ -9,6 +10,8 @@ const HealthResponse = z.object({
   uptimeSeconds: z.number(),
   db: z.boolean(),
   mediamtx: z.boolean(),
+  detector: z.boolean(),
+  vision: z.object({ provider: z.string(), model: z.string() }),
   time: z.string(),
 });
 
@@ -37,6 +40,11 @@ export const healthRoutes: FastifyPluginAsyncZod = async (app) => {
       uptimeSeconds: Math.round(process.uptime()),
       db: dbOk,
       mediamtx: mtxOk,
+      detector: fs.existsSync(env.YOLO_MODEL_PATH),
+      vision: {
+        provider: env.VISION_PROVIDER,
+        model: env.VISION_PROVIDER === 'mock' ? 'mock' : env.VISION_MODEL,
+      },
       time: new Date().toISOString(),
     };
   });

@@ -61,6 +61,8 @@ export interface Health {
   uptimeSeconds: number;
   db: boolean;
   mediamtx: boolean;
+  detector: boolean;
+  vision: { provider: string; model: string };
   time: string;
 }
 
