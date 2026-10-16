@@ -1,0 +1,6 @@
+node_modules
+dist
+package-lock.json
+api/storage
+api/src/db/migrations
+docs/PROMPT.md

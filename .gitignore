@@ -1,0 +1,35 @@
+# Dependências e builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Segredos / ambiente
+.env
+.env.*
+!.env.example
+*.local
+
+# Dados gerados pela API
+api/storage/
+api/models/*.onnx
+api/models/*.pt
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# Vídeos de teste locais
+samples/
+*.mp4

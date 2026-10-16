@@ -1,0 +1,69 @@
+###############################################
+# Sentinela — configuração do MediaMTX (v1.21+)
+# Docs: https://mediamtx.org/docs/references/configuration-file
+###############################################
+
+logLevel: info
+logDestinations: [stdout]
+
+readTimeout: 10s
+writeTimeout: 10s
+
+# Autenticação delegada à API (hook HTTP). Não é segurança: só roteamento,
+# para recusar publicação em paths que não correspondem a uma câmera cadastrada.
+authMethod: http
+# Sobrescrito por MTX_AUTHHTTPADDRESS no docker-compose.yml.
+authHTTPAddress: http://host.docker.internal:3333/mediamtx/auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+
+# API de controle (a API do Sentinela consulta /v3/paths/list).
+api: yes
+apiAddress: :9997
+apiAllowOrigins: ['*']
+
+metrics: no
+pprof: no
+playback: no
+
+# RTSP: usado internamente pela API (ffmpeg) para ler frames.
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: :8554
+
+# RTMP: ingest das câmeras Mibo (push).
+rtmp: yes
+rtmpAddress: :1935
+
+# HLS: fallback do player (ex.: H.265).
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigins: ['*']
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+# WebRTC (WHEP): player principal no front.
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigins: ['*']
+webrtcLocalUDPAddress: :8189
+webrtcIPsFromInterfaces: no
+# Sobrescrito por MTX_WEBRTCADDITIONALHOSTS no docker-compose.yml (IP do host).
+webrtcAdditionalHosts: [127.0.0.1]
+
+srt: no
+moq: no
+
+pathDefaults:
+  source: publisher
+  overridePublisher: yes
+
+paths:
+  # Paths dinâmicos: qualquer live/<streamKey> é aceito aqui; o hook de auth
+  # decide se a chave existe.
+  '~^live/[A-Za-z0-9_-]+$':
+  all_others:

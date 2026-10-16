@@ -1,0 +1,35 @@
+{
+  "name": "sentinela",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sentinela — protótipo de monitoramento de loja autônoma com IA",
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:generate": "npm run db:generate -w api --",
+    "db:migrate": "npm run db:migrate -w api",
+    "lint": "npm run lint -w api && npm run lint -w web",
+    "format": "prettier --write .",
+    "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
+    "test": "npm run test -w api && npm run test -w web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.71.2"
+  }
+}

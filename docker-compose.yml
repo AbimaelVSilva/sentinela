@@ -1,0 +1,42 @@
+name: sentinela
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sentinela}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinela}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinela}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-sentinela} -d ${POSTGRES_DB:-sentinela}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    environment:
+      # IPs/hosts anunciados como candidatos ICE do WebRTC (separados por vírgula).
+      MTX_WEBRTCADDITIONALHOSTS: ${MEDIAMTX_WEBRTC_HOSTS:-127.0.0.1}
+      # Endereço do hook de auth (API rodando no host).
+      MTX_AUTHHTTPADDRESS: http://host.docker.internal:${API_PORT:-3333}/mediamtx/auth
+    ports:
+      - '1935:1935' # RTMP (ingest das câmeras)
+      - '8554:8554' # RTSP (leitura pela API)
+      - '8889:8889' # WebRTC / WHEP
+      - '8189:8189/udp' # WebRTC ICE
+      - '8888:8888' # HLS
+      - '9997:9997' # API de controle
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+volumes:
+  pgdata:
