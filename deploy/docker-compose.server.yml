@@ -1,0 +1,116 @@
+# Sentinela no servidor de desenvolvimento (tudo em Docker).
+# Todas as portas ficam em 127.0.0.1 e não colidem com outras aplicações;
+# o acesso externo é pelo nginx do host (porta 8182) e o WebRTC pela 8189/udp.
+#
+#   docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d --build
+#   docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env --profile sim up -d simulator
+name: sentinela
+
+x-limits: &limits
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  postgres:
+    <<: *limits
+    image: postgres:16
+    environment:
+      POSTGRES_USER: sentinela
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: sentinela
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:15434:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sentinela -d sentinela']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+
+  mediamtx:
+    <<: *limits
+    image: bluenviron/mediamtx:1.21.2
+    volumes:
+      - ../mediamtx.yml:/mediamtx.yml:ro
+    environment:
+      MTX_WEBRTCADDITIONALHOSTS: ${PUBLIC_HOST:?defina PUBLIC_HOST}
+      MTX_AUTHHTTPADDRESS: http://api:3333/mediamtx/auth
+    ports:
+      - '127.0.0.1:11935:1935' # RTMP (só local; abra no firewall para câmera real)
+      - '127.0.0.1:18554:8554' # RTSP
+      - '127.0.0.1:18889:8889' # WebRTC/WHEP (via nginx)
+      - '127.0.0.1:18888:8888' # HLS (via nginx)
+      - '127.0.0.1:19997:9997' # API de controle
+      - '8189:8189/udp' # ICE do WebRTC (público)
+    mem_limit: 512m
+
+  api:
+    <<: *limits
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://sentinela:${POSTGRES_PASSWORD}@postgres:5432/sentinela
+      API_PORT: '3333'
+      API_HOST: 0.0.0.0
+      PUBLIC_RTMP_URL: ${PUBLIC_RTMP_URL:-rtmp://${PUBLIC_HOST}:1935}
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      MEDIAMTX_RTSP_URL: rtsp://mediamtx:8554
+      MEDIAMTX_WEBRTC_URL: ${PUBLIC_BASE_URL}/mtx/webrtc
+      MEDIAMTX_HLS_URL: ${PUBLIC_BASE_URL}/mtx/hls
+      STORAGE_DIR: ./storage
+      YOLO_MODEL_PATH: ./models/yolo.onnx
+      VISION_PROVIDER: ${VISION_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VISION_MODEL: ${VISION_MODEL:-claude-sonnet-5-5}
+    volumes:
+      - storage:/app/api/storage
+      - ../api/models:/app/api/models:ro
+    ports:
+      - '127.0.0.1:13333:3333'
+    cpus: 1.5
+    mem_limit: 1536m
+
+  web:
+    <<: *limits
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_BASE_URL}/api
+    ports:
+      - '127.0.0.1:13010:80'
+    mem_limit: 64m
+
+  # Câmera simulada (opcional): publica o vídeo sintético em loop dentro da rede Docker.
+  simulator:
+    <<: *limits
+    profiles: [sim]
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    depends_on: [api, mediamtx]
+    volumes:
+      - ../samples:/samples:ro
+    environment:
+      SIM_STREAM_KEY: ${SIM_STREAM_KEY:-}
+    entrypoint: ['sh', '-c']
+    command:
+      - >-
+        [ -n "$$SIM_STREAM_KEY" ] || { echo 'defina SIM_STREAM_KEY em deploy/.env'; exit 1; };
+        sleep 5; exec ffmpeg -hide_banner -loglevel warning -re -stream_loop -1
+        -i /samples/prateleira-sintetica.mp4 -c:v libx264 -preset veryfast -tune zerolatency
+        -pix_fmt yuv420p -g 30 -an -f flv rtmp://mediamtx:1935/live/$$SIM_STREAM_KEY
+    cpus: 1
+    mem_limit: 256m
+
+volumes:
+  pgdata:
+  storage:
