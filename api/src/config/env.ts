@@ -6,6 +6,9 @@ import { z } from 'zod';
 export const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 const num = (def: number) => z.coerce.number().finite().default(def);
+/** Número opcional: string vazia no .env conta como ausente. */
+const optionalNum = () =>
+  z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().positive().optional());
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -19,9 +22,18 @@ const EnvSchema = z.object({
   MEDIAMTX_HLS_URL: z.string().url().default('http://localhost:8888'),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
-  VISION_PROVIDER: z.enum(['anthropic', 'mock']).default('anthropic'),
+  VISION_PROVIDER: z.enum(['anthropic', 'openai', 'mock']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   VISION_MODEL: z.string().default('claude-sonnet-5-5'),
+  OPENAI_API_KEY: z.string().optional().default(''),
+  OPENAI_MODEL: z.string().default('gpt-5.1'),
+  OPENAI_BASE_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  VISION_PRICE_INPUT_PER_MTOK: optionalNum(),
+  VISION_PRICE_OUTPUT_PER_MTOK: optionalNum(),
   VISION_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),
   INVENTORY_REFRESH_EVERY: z.coerce.number().int().positive().default(20),
   ANALYSIS_FPS: num(4),

@@ -40,3 +40,21 @@ export class VisionError extends Error {
 }
 
 export type Parsed<S extends z.ZodType> = z.output<S>;
+
+/**
+ * Custo estimado em USD a partir de uma tabela de preços (USD por milhão de tokens).
+ * VISION_PRICE_INPUT_PER_MTOK / VISION_PRICE_OUTPUT_PER_MTOK sobrescrevem a tabela.
+ */
+export function estimateCost(
+  model: string,
+  input: number,
+  output: number,
+  table: [RegExp, number, number][],
+  override?: { input?: number; output?: number },
+): number | undefined {
+  const row = table.find(([re]) => re.test(model));
+  const pin = override?.input ?? row?.[1];
+  const pout = override?.output ?? row?.[2];
+  if (pin === undefined || pout === undefined) return undefined;
+  return (input * pin + output * pout) / 1_000_000;
+}

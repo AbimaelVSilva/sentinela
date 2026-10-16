@@ -70,6 +70,12 @@ services:
       VISION_PROVIDER: ${VISION_PROVIDER:-mock}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       VISION_MODEL: ${VISION_MODEL:-claude-sonnet-5-5}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.1}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      VISION_EFFORT: ${VISION_EFFORT:-medium}
+      VISION_PRICE_INPUT_PER_MTOK: ${VISION_PRICE_INPUT_PER_MTOK:-}
+      VISION_PRICE_OUTPUT_PER_MTOK: ${VISION_PRICE_OUTPUT_PER_MTOK:-}
     volumes:
       - storage:/app/api/storage
       - ../api/models:/app/api/models:ro

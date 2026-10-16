@@ -77,12 +77,12 @@ DISABLED → NO_BASELINE → IDLE → OCCUPIED → WAITING_CLEAR → WAITING_STA
 - Node.js 20+ (testado com 22) e npm 10+
 - Docker + Docker Compose
 - FFmpeg no host (`ffmpeg -version`)
-- Chave da API da Anthropic (ou `VISION_PROVIDER=mock` para desenvolver sem custo)
+- Chave da API da Anthropic **ou** da OpenAI (ou `VISION_PROVIDER=mock` para desenvolver sem custo)
 
 ## Setup
 
 ```bash
-cp .env.example .env              # ajuste PUBLIC_RTMP_URL, ANTHROPIC_API_KEY, MEDIAMTX_WEBRTC_HOSTS
+cp .env.example .env              # ajuste PUBLIC_RTMP_URL, chave da IA, MEDIAMTX_WEBRTC_HOSTS
 cp web/.env.example web/.env
 npm install
 npm run infra:up                  # Postgres + MediaMTX
@@ -112,30 +112,34 @@ Abra <http://localhost:5173>. O indicador no topo mostra API, banco, MediaMTX, d
 
 A API e o `docker-compose.yml` leem o `.env` da **raiz**. O front lê `web/.env` (`VITE_API_URL`).
 
-| Variável                             | Padrão                                                    | Descrição                                                 |
-| ------------------------------------ | --------------------------------------------------------- | --------------------------------------------------------- |
-| `DATABASE_URL`                       | `postgres://sentinela:sentinela@localhost:5432/sentinela` | conexão do Postgres                                       |
-| `API_PORT`                           | `3333`                                                    | porta da API (o hook do MediaMTX usa a mesma)             |
-| `PUBLIC_RTMP_URL`                    | —                                                         | URL RTMP **pública** mostrada ao usuário (túnel/VPS)      |
-| `MEDIAMTX_WEBRTC_HOSTS`              | `127.0.0.1`                                               | IPs anunciados no ICE do WebRTC (inclua o IP da LAN)      |
-| `MEDIAMTX_*_URL`                     | `localhost`                                               | API (9997), RTSP (8554), WebRTC (8889), HLS (8888)        |
-| `STORAGE_DIR`                        | `./storage`                                               | snapshots JPEG (relativo a `api/`)                        |
-| `YOLO_MODEL_PATH`                    | `./models/yolo.onnx`                                      | modelo ONNX (relativo a `api/`)                           |
-| `YOLO_ONNX_URL`                      | —                                                         | URL direta de um `.onnx` pronto (opcional)                |
-| `VISION_PROVIDER`                    | `anthropic`                                               | `anthropic` ou `mock` (análise simulada)                  |
-| `ANTHROPIC_API_KEY`                  | —                                                         | chave da Anthropic (o SDK também aceita `ant auth login`) |
-| `VISION_MODEL`                       | `claude-sonnet-5-5`                                       | modelo de visão                                           |
-| `VISION_EFFORT`                      | `medium`                                                  | esforço de raciocínio (`low`/`medium`/`high`)             |
-| `INVENTORY_REFRESH_EVERY`            | `20`                                                      | refaz o inventário a cada N eventos                       |
-| `ANALYSIS_FPS`                       | `4`                                                       | frames/s analisados por câmera                            |
-| `PERSON_CONFIDENCE`                  | `0.45`                                                    | confiança mínima do YOLO para `person`                    |
-| `ROI_OVERLAP_MIN`                    | `0.15`                                                    | fração do bbox da pessoa dentro da ROI                    |
-| `ENTER_CONSECUTIVE_FRAMES`           | `3`                                                       | frames seguidos para considerar ocupação                  |
-| `CLEAR_SECONDS`                      | `2.5`                                                     | tempo sem pessoa para considerar a saída                  |
-| `STABLE_SECONDS` / `STABLE_DIFF_MAX` | `1.5` / `0.01`                                            | estabilidade da cena antes da captura                     |
-| `STABLE_MAX_WAIT_SECONDS`            | `15`                                                      | captura mesmo sem estabilizar após esse tempo             |
-| `SCENE_DIFF_MIN`                     | `0.004`                                                   | limiar do pré-filtro (fração de pixels diferentes)        |
-| `MAX_OCCLUSION_SECONDS`              | `600`                                                     | oclusão prolongada                                        |
+| Variável                                         | Padrão                                                    | Descrição                                                 |
+| ------------------------------------------------ | --------------------------------------------------------- | --------------------------------------------------------- |
+| `DATABASE_URL`                                   | `postgres://sentinela:sentinela@localhost:5432/sentinela` | conexão do Postgres                                       |
+| `API_PORT`                                       | `3333`                                                    | porta da API (o hook do MediaMTX usa a mesma)             |
+| `PUBLIC_RTMP_URL`                                | —                                                         | URL RTMP **pública** mostrada ao usuário (túnel/VPS)      |
+| `MEDIAMTX_WEBRTC_HOSTS`                          | `127.0.0.1`                                               | IPs anunciados no ICE do WebRTC (inclua o IP da LAN)      |
+| `MEDIAMTX_*_URL`                                 | `localhost`                                               | API (9997), RTSP (8554), WebRTC (8889), HLS (8888)        |
+| `STORAGE_DIR`                                    | `./storage`                                               | snapshots JPEG (relativo a `api/`)                        |
+| `YOLO_MODEL_PATH`                                | `./models/yolo.onnx`                                      | modelo ONNX (relativo a `api/`)                           |
+| `YOLO_ONNX_URL`                                  | —                                                         | URL direta de um `.onnx` pronto (opcional)                |
+| `VISION_PROVIDER`                                | `anthropic`                                               | `anthropic`, `openai` ou `mock` (análise simulada)        |
+| `ANTHROPIC_API_KEY`                              | —                                                         | chave da Anthropic (o SDK também aceita `ant auth login`) |
+| `VISION_MODEL`                                   | `claude-sonnet-5-5`                                       | modelo de visão                                           |
+| `VISION_EFFORT`                                  | `medium`                                                  | esforço de raciocínio (`low`/`medium`/`high`)             |
+| `OPENAI_API_KEY`                                 | —                                                         | chave da OpenAI (`VISION_PROVIDER=openai`)                |
+| `OPENAI_MODEL`                                   | `gpt-5.1`                                                 | modelo da OpenAI com visão                                |
+| `OPENAI_BASE_URL`                                | —                                                         | endpoint compatível opcional (Azure OpenAI, proxy)        |
+| `VISION_PRICE_INPUT_PER_MTOK` / `..._OUTPUT_...` | —                                                         | preço por milhão de tokens para a estimativa de custo     |
+| `INVENTORY_REFRESH_EVERY`                        | `20`                                                      | refaz o inventário a cada N eventos                       |
+| `ANALYSIS_FPS`                                   | `4`                                                       | frames/s analisados por câmera                            |
+| `PERSON_CONFIDENCE`                              | `0.45`                                                    | confiança mínima do YOLO para `person`                    |
+| `ROI_OVERLAP_MIN`                                | `0.15`                                                    | fração do bbox da pessoa dentro da ROI                    |
+| `ENTER_CONSECUTIVE_FRAMES`                       | `3`                                                       | frames seguidos para considerar ocupação                  |
+| `CLEAR_SECONDS`                                  | `2.5`                                                     | tempo sem pessoa para considerar a saída                  |
+| `STABLE_SECONDS` / `STABLE_DIFF_MAX`             | `1.5` / `0.01`                                            | estabilidade da cena antes da captura                     |
+| `STABLE_MAX_WAIT_SECONDS`                        | `15`                                                      | captura mesmo sem estabilizar após esse tempo             |
+| `SCENE_DIFF_MIN`                                 | `0.004`                                                   | limiar do pré-filtro (fração de pixels diferentes)        |
+| `MAX_OCCLUSION_SECONDS`                          | `600`                                                     | oclusão prolongada                                        |
 
 ---
 
@@ -243,11 +247,24 @@ a API sobe normalmente, mas o monitoramento fica inativo (aviso no log e no indi
 
 ## IA de visão
 
-- Provider plugável (`api/src/vision/provider.ts`); implementação Anthropic em `anthropic.ts`,
-  prompts e schemas Zod em `prompts.ts` (`VALIDATE_SCENE`, `INVENTORY`, `COMPARE`).
-- Saída estruturada via JSON Schema + validação Zod (com normalização de regiões e confianças).
-- Fallback server-side (`fallbacks: "default"`): se o modelo recusar por política, a API tenta o
-  fallback padrão da Anthropic; recusa final vira `analysis_failed`.
+Escolha o provider com `VISION_PROVIDER` e reinicie a API:
+
+| Provider    | Variáveis                                                              | Implementação                                             |
+| ----------- | ---------------------------------------------------------------------- | --------------------------------------------------------- |
+| `anthropic` | `ANTHROPIC_API_KEY`, `VISION_MODEL` (padrão `claude-sonnet-5-5`)       | `api/src/vision/anthropic.ts` (Messages API)              |
+| `openai`    | `OPENAI_API_KEY`, `OPENAI_MODEL` (padrão `gpt-5.1`), `OPENAI_BASE_URL` | `api/src/vision/openai.ts` (Responses API)                |
+| `mock`      | —                                                                      | `api/src/vision/mock.ts` (heurístico, só desenvolvimento) |
+
+- Os dois providers reais usam os mesmos prompts e schemas Zod (`api/src/vision/prompts.ts`:
+  `VALIDATE_SCENE`, `INVENTORY`, `COMPARE`), saída estruturada por JSON Schema, validação Zod com
+  normalização de regiões/confianças e um retry com a mensagem de erro.
+- `VISION_EFFORT` vira `output_config.effort` (Anthropic) ou `reasoning.effort` (OpenAI, modelos
+  `gpt-5*`/`o*`). `temperature: 0` só é enviado aos modelos que aceitam.
+- Anthropic: fallback server-side (`fallbacks: "default"`) se o modelo recusar por política.
+  OpenAI: recusa (`refusal`) ou resposta incompleta viram `analysis_failed`.
+- Sem chave, a API sobe normalmente; as análises falham com mensagem clara até a chave ser definida.
+- O custo estimado usa uma tabela interna de preços; para modelos fora dela (ex.: `gpt-5.1`),
+  defina `VISION_PRICE_INPUT_PER_MTOK` e `VISION_PRICE_OUTPUT_PER_MTOK`.
 - Tokens e custo estimado são logados por chamada e salvos em `events.details.usage` (o modal do
   evento mostra os valores).
 
@@ -314,10 +331,10 @@ YOLO e o provider Anthropic com cliente mockado (retry, refusal, parâmetros por
 
 ## Solução de problemas
 
-| Sintoma                                  | Causa provável                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------------- |
-| `authentication failed` ao publicar      | API fora do ar (hook de auth) ou chave errada/regenerada                  |
-| Câmera fica "Aguardando sinal"           | URL/porta RTMP não acessível pela internet; confira o túnel               |
-| Player preso em "Conectando (WebRTC)…"   | ICE bloqueado: ajuste `MEDIAMTX_WEBRTC_HOSTS` / 8189/udp; use o botão HLS |
-| Monitoramento nunca sai de "Monitorando" | modelo YOLO ausente, ROI errada ou `PERSON_CONFIDENCE` alto               |
-| Muitos `analysis_failed`                 | `ANTHROPIC_API_KEY` ausente/inválida (veja o log da API)                  |
+| Sintoma                                  | Causa provável                                                                      |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| `authentication failed` ao publicar      | API fora do ar (hook de auth) ou chave errada/regenerada                            |
+| Câmera fica "Aguardando sinal"           | URL/porta RTMP não acessível pela internet; confira o túnel                         |
+| Player preso em "Conectando (WebRTC)…"   | ICE bloqueado: ajuste `MEDIAMTX_WEBRTC_HOSTS` / 8189/udp; use o botão HLS           |
+| Monitoramento nunca sai de "Monitorando" | modelo YOLO ausente, ROI errada ou `PERSON_CONFIDENCE` alto                         |
+| Muitos `analysis_failed`                 | chave da IA (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) ausente ou inválida (veja o log) |

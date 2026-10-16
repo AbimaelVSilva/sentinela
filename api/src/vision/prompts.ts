@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Inventory } from '../domain/types';
 
 /**
  * Prompts e schemas Zod das respostas da IA de visão.
@@ -155,4 +156,47 @@ ${
     ? `\nInventário de referência da prateleira (posições aproximadas na imagem ANTES; use os ids em itemId quando corresponder):\n${inventoryContext}`
     : ''
 }`;
+}
+
+/** Inventário como contexto textual para o COMPARE (null se vazio). */
+export function inventoryContext(inventory: Inventory | null): string | null {
+  if (!inventory?.items.length) return null;
+  return inventory.items
+    .map(
+      (i) =>
+        `- ${i.id}: ${i.label} (qtd ~${i.quantity}; região x=${i.region.x.toFixed(2)} y=${i.region.y.toFixed(2)} w=${i.region.w.toFixed(2)} h=${i.region.h.toFixed(2)})`,
+    )
+    .join('\n');
+}
+
+export const SYSTEM_PROMPT = `Você é o módulo de visão computacional do Sentinela, um sistema de monitoramento de prateleiras de lojas autônomas.
+Analise as imagens com atenção a detalhes e responda somente com o JSON solicitado.
+Textos para o operador devem estar em português do Brasil.`;
+
+/** Mensagem de retry quando a resposta não passa na validação. */
+export const retryPrompt = (problem: string) =>
+  `A resposta anterior não passou na validação (${problem}). Responda novamente apenas com o JSON corrigido, seguindo o schema.`;
+
+/** Extrai e valida o JSON da resposta; devolve o dado ou a descrição do problema. */
+export function parseVisionJson<S extends z.ZodType>(
+  schema: S,
+  text: string,
+): { ok: true; data: z.output<S> } | { ok: false; problem: string } {
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(text.trim());
+  try {
+    const parsed = schema.safeParse(JSON.parse(fenced?.[1] ?? text));
+    if (parsed.success) return { ok: true, data: parsed.data };
+    return {
+      ok: false,
+      problem: parsed.error.issues
+        .slice(0, 5)
+        .map((i) => `${i.path.join('.') || '(raiz)'}: ${i.message}`)
+        .join('; '),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      problem: `JSON inválido: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }

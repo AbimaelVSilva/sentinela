@@ -11,10 +11,20 @@ import {
   comparePrompt,
   INVENTORY_PROMPT,
   InventorySchema,
+  inventoryContext,
+  parseVisionJson,
+  retryPrompt,
   SceneValidationSchema,
+  SYSTEM_PROMPT,
   VALIDATE_SCENE_PROMPT,
 } from './prompts';
-import { VisionError, type VisionProvider, type VisionResult, type VisionUsage } from './provider';
+import {
+  estimateCost,
+  VisionError,
+  type VisionProvider,
+  type VisionResult,
+  type VisionUsage,
+} from './provider';
 
 /** Preço por milhão de tokens (entrada, saída), em USD. Usado só para estimativa no log. */
 const PRICING: [RegExp, number, number][] = [
@@ -25,11 +35,6 @@ const PRICING: [RegExp, number, number][] = [
   [/sonnet-4/, 3, 15],
   [/haiku-4/, 1, 5],
 ];
-
-function estimateCost(model: string, input: number, output: number): number | undefined {
-  const p = PRICING.find(([re]) => re.test(model));
-  return p ? (input * p[1] + output * p[2]) / 1_000_000 : undefined;
-}
 
 /**
  * `temperature` só é aceito em modelos anteriores à família 4.7/5 (que rejeitam
@@ -44,16 +49,18 @@ const supportsEffort = (model: string) =>
 
 type Effort = 'low' | 'medium' | 'high';
 
-const SYSTEM = `Você é o módulo de visão computacional do Sentinela, um sistema de monitoramento de prateleiras de lojas autônomas.
-Analise as imagens com atenção a detalhes e responda somente com o JSON solicitado.
-Textos para o operador devem estar em português do Brasil.`;
-
 export class AnthropicVisionProvider implements VisionProvider {
   readonly name = 'anthropic';
   private readonly client: Anthropic;
 
   constructor(
-    private readonly opts: { apiKey?: string; model: string; effort: Effort; client?: Anthropic },
+    private readonly opts: {
+      apiKey?: string;
+      model: string;
+      effort: Effort;
+      client?: Anthropic;
+      price?: { input?: number; output?: number };
+    },
     private readonly log: FastifyBaseLogger,
   ) {
     // Sem chave explícita o SDK resolve credenciais do ambiente (ANTHROPIC_API_KEY,
@@ -82,14 +89,7 @@ export class AnthropicVisionProvider implements VisionProvider {
     after: Buffer,
     inventory: Inventory | null,
   ): Promise<VisionResult<Comparison>> {
-    const context = inventory?.items.length
-      ? inventory.items
-          .map(
-            (i) =>
-              `- ${i.id}: ${i.label} (qtd ~${i.quantity}; região x=${i.region.x.toFixed(2)} y=${i.region.y.toFixed(2)} w=${i.region.w.toFixed(2)} h=${i.region.h.toFixed(2)})`,
-          )
-          .join('\n')
-      : null;
+    const context = inventoryContext(inventory);
     return this.call(
       'COMPARE',
       [before, after],
@@ -134,7 +134,7 @@ export class AnthropicVisionProvider implements VisionProvider {
         response = await this.client.beta.messages.create({
           model,
           max_tokens: 16000,
-          system: SYSTEM,
+          system: SYSTEM_PROMPT,
           messages,
           output_config: {
             format: { type: 'json_schema', schema: format.schema },
@@ -153,7 +153,13 @@ export class AnthropicVisionProvider implements VisionProvider {
 
       usage.inputTokens += response.usage.input_tokens;
       usage.outputTokens += response.usage.output_tokens;
-      usage.estimatedCostUsd = estimateCost(model, usage.inputTokens, usage.outputTokens);
+      usage.estimatedCostUsd = estimateCost(
+        model,
+        usage.inputTokens,
+        usage.outputTokens,
+        PRICING,
+        this.opts.price,
+      );
       this.log.info(
         {
           kind,
@@ -180,17 +186,9 @@ export class AnthropicVisionProvider implements VisionProvider {
         .join('')
         .trim();
 
-      let problem: string;
-      try {
-        const parsed = finalSchema.safeParse(JSON.parse(stripFences(text)));
-        if (parsed.success) return { data: parsed.data, usage };
-        problem = parsed.error.issues
-          .slice(0, 5)
-          .map((i) => `${i.path.join('.') || '(raiz)'}: ${i.message}`)
-          .join('; ');
-      } catch (err) {
-        problem = `JSON inválido: ${err instanceof Error ? err.message : String(err)}`;
-      }
+      const result = parseVisionJson(finalSchema, text);
+      if (result.ok) return { data: result.data, usage };
+      const { problem } = result;
 
       this.log.warn({ kind, attempt, problem }, 'Resposta de visão inválida');
       if (attempt === 2) throw new VisionError(`Resposta inválida da IA: ${problem}`, usage);
@@ -198,17 +196,12 @@ export class AnthropicVisionProvider implements VisionProvider {
         { role: 'assistant', content: response.content },
         {
           role: 'user',
-          content: `A resposta anterior não passou na validação (${problem}). Responda novamente apenas com o JSON corrigido, seguindo o schema.`,
+          content: retryPrompt(problem),
         },
       );
     }
     throw new VisionError('Falha inesperada na chamada de visão', usage);
   }
-}
-
-function stripFences(text: string): string {
-  const m = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(text);
-  return m?.[1] ?? text;
 }
 
 function describeApiError(err: unknown): string {
