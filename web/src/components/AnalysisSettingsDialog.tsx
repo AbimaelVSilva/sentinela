@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircleIcon, RotateCcwIcon, SettingsIcon } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { InfoTip } from '@/components/InfoTip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -167,7 +168,11 @@ export function AnalysisSettingsButton({ camera }: { camera: Camera }) {
         </TooltipContent>
       </Tooltip>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent
+          className="max-h-[92svh] overflow-y-auto sm:max-w-2xl"
+          // Sem foco automático: senão o primeiro ícone de info abre o tooltip ao abrir o modal.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Configurações da análise</DialogTitle>
             <DialogDescription>
@@ -244,7 +249,10 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
     return (
       <div key={f.key} className={cn('grid gap-1.5', disabled && 'opacity-50')}>
         <div className="flex items-center justify-between gap-2">
-          <Label htmlFor={`as-${f.key}`}>{f.label}</Label>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`as-${f.key}`}>{f.label}</Label>
+            <InfoTip label={`Sobre: ${f.label}`}>{f.help}</InfoTip>
+          </div>
           {isDefault ? (
             <span className="text-xs text-muted-foreground">padrão</span>
           ) : (
@@ -279,11 +287,7 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
             </span>
           )}
         </div>
-        {errors[f.key] ? (
-          <p className="text-xs text-destructive">{errors[f.key]}</p>
-        ) : (
-          <p className="text-xs text-muted-foreground">{f.help}</p>
-        )}
+        {errors[f.key] && <p className="text-xs text-destructive">{errors[f.key]}</p>}
       </div>
     );
   };
@@ -291,15 +295,15 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 rounded-lg border p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5">
             <Label htmlFor="as-prefilter" className="text-sm">
               Pré-filtro de diferença
             </Label>
-            <p className="text-xs text-muted-foreground">
+            <InfoTip label="Sobre: Pré-filtro de diferença">
               Compara antes/depois e só chama a IA se a prateleira mudou. Desligado, toda passagem é
               analisada pela IA (mais preciso para itens pequenos, mais caro).
-            </p>
+            </InfoTip>
           </div>
           <div className="flex items-center gap-2">
             {prefilter !== defaults.prefilterEnabled && (
