@@ -82,17 +82,37 @@ export const InventorySchema = z.object({
     .max(200),
 });
 
-export const INVENTORY_PROMPT = `A imagem mostra a prateleira de uma loja autônoma, vista por uma câmera de segurança.
+/**
+ * Formato das regiões pedido à IA. `xywh` (frações 0..1) é o padrão; `box_2d`
+ * ([ymin, xmin, ymax, xmax] em inteiros 0..1000) é o formato nativo do Gemini,
+ * que localiza objetos com bem mais precisão nele.
+ */
+export type BoxFormat = 'xywh' | 'box_2d';
+
+const BOX_2D_RULE =
+  '[ymin, xmin, ymax, xmax] em inteiros de 0 a 1000, relativos à altura e largura da imagem';
+
+export function inventoryPrompt(format: BoxFormat = 'xywh'): string {
+  const regionRule =
+    format === 'box_2d'
+      ? `- box_2d: caixa justa em volta do item (ou grupo), ${BOX_2D_RULE};`
+      : '- region: retângulo justo que envolve o item, em frações 0..1 da imagem (x, y = canto superior esquerdo);';
+  return `A imagem mostra a prateleira de uma loja autônoma, vista por uma câmera de segurança.
 Liste os produtos visíveis para servir de inventário de referência.
 
 Para cada produto (ou grupo de unidades idênticas lado a lado):
 - id: identificador curto e estável, em sequência: "p1", "p2", "p3"… (da esquerda para a direita, de cima para baixo);
 - label: descrição curta que permita reconhecer o item em outra foto (marca, tipo, cor, embalagem, tamanho), em português;
 - quantity: quantidade aproximada de unidades visíveis;
-- region: retângulo que envolve o item, em frações 0..1 da imagem (x, y = canto superior esquerdo);
+${regionRule}
 - shelfRow: número da fileira (1 = mais alta) ou null.
 
+A caixa deve cobrir só aquele produto/grupo, sem incluir prateleiras vizinhas ou outros produtos.
 Não invente produtos que não estão visíveis. Ignore pessoas, mãos, etiquetas de preço e a estrutura da prateleira.`;
+}
+
+/** @deprecated use inventoryPrompt() */
+export const INVENTORY_PROMPT = inventoryPrompt('xywh');
 
 // ---------- COMPARE ----------
 
@@ -134,7 +154,11 @@ export const ComparisonSchema = z.object({
   overallConfidence: z.number().transform(clamp01),
 });
 
-export function comparePrompt(inventoryContext: string | null): string {
+export function comparePrompt(inventoryContext: string | null, format: BoxFormat = 'xywh'): string {
+  const regionRule =
+    format === 'box_2d'
+      ? `- Regiões (before_box_2d/after_box_2d): ${BOX_2D_RULE}, da imagem correspondente.`
+      : '- Regiões (beforeRegion/afterRegion) em frações 0..1 da imagem correspondente (x, y = canto superior esquerdo).';
   return `Você recebe duas fotos da MESMA prateleira de uma loja autônoma, tiradas pela mesma câmera fixa:
 a primeira imagem é ANTES e a segunda é DEPOIS de uma pessoa passar na frente da prateleira.
 Sua tarefa é dizer o que mudou nos produtos.
@@ -148,7 +172,7 @@ Regras:
 - Para cada unidade retirada de um grupo, informe quantity com quantas unidades sumiram.
 - Na dúvida entre movido e retirado, escolha a opção mais provável, use confidence baixa (< 0.5) e explique a dúvida no summary.
 - Se nada mudou, retorne changes vazio.
-- Regiões (beforeRegion/afterRegion) em frações 0..1 da imagem correspondente (x, y = canto superior esquerdo).
+${regionRule}
 - summary: uma ou duas frases curtas em português do Brasil para o operador da loja (ex.: "1 lata de Coca-Cola retirada da 2ª prateleira").
 - overallConfidence: confiança geral 0..1 na análise.
 ${
@@ -159,14 +183,82 @@ ${
 }
 
 /** Inventário como contexto textual para o COMPARE (null se vazio). */
-export function inventoryContext(inventory: Inventory | null): string | null {
+export function inventoryContext(
+  inventory: Inventory | null,
+  format: BoxFormat = 'xywh',
+): string | null {
   if (!inventory?.items.length) return null;
   return inventory.items
-    .map(
-      (i) =>
-        `- ${i.id}: ${i.label} (qtd ~${i.quantity}; região x=${i.region.x.toFixed(2)} y=${i.region.y.toFixed(2)} w=${i.region.w.toFixed(2)} h=${i.region.h.toFixed(2)})`,
-    )
+    .map((i) => {
+      const r = i.region;
+      const pos =
+        format === 'box_2d'
+          ? `box_2d [${regionToBox2d(r).join(', ')}]`
+          : `região x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} h=${r.h.toFixed(2)}`;
+      return `- ${i.id}: ${i.label} (qtd ~${i.quantity}; ${pos})`;
+    })
     .join('\n');
+}
+
+// ---------- Formato box_2d (Gemini) ----------
+
+const ApiBox2d = z
+  .array(z.number().int())
+  .describe('[ymin, xmin, ymax, xmax] em inteiros de 0 a 1000');
+
+/** Schemas enviados ao Gemini: mesmas respostas, com caixas em box_2d. */
+export const GoogleApiInventory = z.object({
+  items: z.array(ApiInventoryItem.omit({ region: true }).extend({ box_2d: ApiBox2d })),
+});
+export const GoogleApiComparison = ApiComparison.extend({
+  changes: z.array(
+    ApiChange.omit({ beforeRegion: true, afterRegion: true }).extend({
+      before_box_2d: ApiBox2d.nullable().describe('onde estava na imagem ANTES (null para added)'),
+      after_box_2d: ApiBox2d.nullable().describe('onde está na imagem DEPOIS (null para removed)'),
+    }),
+  ),
+});
+
+/** [ymin, xmin, ymax, xmax] 0..1000 → {x, y, w, h} 0..1 (tolera ordem invertida). */
+export function box2dToRegion(box: unknown): { x: number; y: number; w: number; h: number } | null {
+  if (!Array.isArray(box) || box.length !== 4 || box.some((n) => typeof n !== 'number'))
+    return null;
+  const [a, b, c, d] = (box as number[]).map((n) => Math.min(1000, Math.max(0, n)) / 1000);
+  const y0 = Math.min(a!, c!);
+  const y1 = Math.max(a!, c!);
+  const x0 = Math.min(b!, d!);
+  const x1 = Math.max(b!, d!);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+export function regionToBox2d(r: { x: number; y: number; w: number; h: number }): number[] {
+  return [r.y, r.x, r.y + r.h, r.x + r.w].map((v) => Math.round(clamp01(v) * 1000));
+}
+
+/** Converte a resposta em box_2d para o formato comum (region/beforeRegion/afterRegion). */
+export function fromBox2dResponse(json: unknown): unknown {
+  if (!json || typeof json !== 'object') return json;
+  const obj = json as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...obj };
+  if (Array.isArray(obj.items)) {
+    out.items = obj.items.map((it) => {
+      if (!it || typeof it !== 'object') return it;
+      const { box_2d, ...rest } = it as Record<string, unknown>;
+      return { ...rest, region: box2dToRegion(box_2d) };
+    });
+  }
+  if (Array.isArray(obj.changes)) {
+    out.changes = obj.changes.map((ch) => {
+      if (!ch || typeof ch !== 'object') return ch;
+      const { before_box_2d, after_box_2d, ...rest } = ch as Record<string, unknown>;
+      return {
+        ...rest,
+        beforeRegion: before_box_2d == null ? null : box2dToRegion(before_box_2d),
+        afterRegion: after_box_2d == null ? null : box2dToRegion(after_box_2d),
+      };
+    });
+  }
+  return out;
 }
 
 export const SYSTEM_PROMPT = `Você é o módulo de visão computacional do Sentinela, um sistema de monitoramento de prateleiras de lojas autônomas.
@@ -181,10 +273,11 @@ export const retryPrompt = (problem: string) =>
 export function parseVisionJson<S extends z.ZodType>(
   schema: S,
   text: string,
+  transform: (json: unknown) => unknown = (j) => j,
 ): { ok: true; data: z.output<S> } | { ok: false; problem: string } {
   const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(text.trim());
   try {
-    const parsed = schema.safeParse(JSON.parse(fenced?.[1] ?? text));
+    const parsed = schema.safeParse(transform(JSON.parse(fenced?.[1] ?? text)));
     if (parsed.success) return { ok: true, data: parsed.data };
     return {
       ok: false,

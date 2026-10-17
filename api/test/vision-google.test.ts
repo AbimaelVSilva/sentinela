@@ -86,6 +86,34 @@ describe('GoogleVisionProvider', () => {
   });
 });
 
+describe('GoogleVisionProvider: caixas em box_2d', () => {
+  it('pede box_2d e devolve regiões no formato comum', async () => {
+    const inv = JSON.stringify({
+      items: [
+        { id: 'p1', label: 'Água 20L', quantity: 3, box_2d: [100, 600, 500, 950], shelfRow: 1 },
+      ],
+    });
+    const { p, generateContent } = provider([reply(inv)]);
+    const res = await p.inventory(img);
+    expect(res.data.items[0]!.region).toEqual({
+      x: 0.6,
+      y: 0.1,
+      w: expect.closeTo(0.35),
+      h: expect.closeTo(0.4),
+    });
+    const req = generateContent.mock.calls[0]![0] as {
+      contents: { parts: { text?: string }[] }[];
+      config: { responseJsonSchema: { properties: { items: { items: { properties: object } } } } };
+    };
+    expect(Object.keys(req.config.responseJsonSchema.properties.items.items.properties)).toContain(
+      'box_2d',
+    );
+    expect(req.contents[0]!.parts.map((x) => x.text ?? '').join(' ')).toContain(
+      '[ymin, xmin, ymax, xmax]',
+    );
+  });
+});
+
 describe('GoogleVisionProvider: erros transitórios', () => {
   it('repete após 503 e conclui', async () => {
     vi.useFakeTimers();

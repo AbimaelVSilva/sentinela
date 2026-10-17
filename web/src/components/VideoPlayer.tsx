@@ -21,6 +21,7 @@ export function VideoPlayer({
   forceHls,
   className,
   children,
+  contentOverlay,
 }: {
   whepUrl: string;
   hlsUrl: string;
@@ -28,10 +29,41 @@ export function VideoPlayer({
   /** Ex.: stream em H.265 — vai direto para HLS. */
   forceHls?: boolean;
   className?: string;
-  /** Overlays posicionados sobre o vídeo. */
+  /** Overlays posicionados sobre o player (badges, botões). */
   children?: ReactNode;
+  /**
+   * Overlays alinhados à área real da imagem (ROI, destaques): o vídeo usa
+   * object-contain, então a imagem pode não ocupar o player inteiro.
+   */
+  contentOverlay?: ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoSize, setVideoSize] = useState({ w: 16, h: 9 });
+
+  // Proporção real da imagem do vídeo (para alinhar os overlays à área visível).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onMeta = () => {
+      if (video.videoWidth && video.videoHeight) {
+        setVideoSize({ w: video.videoWidth, h: video.videoHeight });
+      }
+    };
+    video.addEventListener('loadedmetadata', onMeta);
+    video.addEventListener('resize', onMeta);
+    return () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('resize', onMeta);
+    };
+  }, []);
+
+  // Área ocupada pela imagem com object-contain, só com CSS (container queries):
+  // não depende de medir o DOM em JavaScript.
+  const ratio = videoSize.w / videoSize.h;
+  const content = {
+    width: `min(100cqw, calc(100cqh * ${ratio}))`,
+    height: `min(100cqh, calc(100cqw / ${ratio}))`,
+  };
   const [mode, setMode] = useState<PlayerMode>(forceHls ? 'hls' : 'webrtc');
   const [status, setStatus] = useState<PlayerStatus>(online ? 'connecting' : 'offline');
   const [attempt, setAttempt] = useState(0);
@@ -148,7 +180,10 @@ export function VideoPlayer({
 
   return (
     <div
-      className={cn('relative aspect-video w-full overflow-hidden rounded-xl bg-black', className)}
+      className={cn(
+        'relative aspect-video w-full overflow-hidden rounded-xl bg-black [container-type:size]',
+        className,
+      )}
     >
       <video
         ref={videoRef}
@@ -176,6 +211,12 @@ export function VideoPlayer({
               Conectando ({effectiveMode === 'webrtc' ? 'WebRTC' : 'HLS'})…
             </>
           )}
+        </div>
+      )}
+
+      {contentOverlay && (
+        <div className="pointer-events-none absolute inset-0 m-auto" style={content}>
+          {contentOverlay}
         </div>
       )}
 

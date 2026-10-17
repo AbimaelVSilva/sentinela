@@ -9,14 +9,15 @@ import type { FastifyBaseLogger } from 'fastify';
 import { z } from 'zod';
 import type { Comparison, Inventory, SceneValidation } from '../domain/types';
 import {
-  ApiComparison,
-  ApiInventory,
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
-  INVENTORY_PROMPT,
+  fromBox2dResponse,
+  GoogleApiComparison,
+  GoogleApiInventory,
   InventorySchema,
   inventoryContext,
+  inventoryPrompt,
   parseVisionJson,
   retryPrompt,
   SceneValidationSchema,
@@ -89,7 +90,13 @@ export class GoogleVisionProvider implements VisionProvider {
   }
 
   inventory(image: Buffer): Promise<VisionResult<Inventory>> {
-    return this.call('INVENTORY', [image], INVENTORY_PROMPT, ApiInventory, InventorySchema);
+    return this.call(
+      'INVENTORY',
+      [image],
+      inventoryPrompt('box_2d'),
+      GoogleApiInventory,
+      InventorySchema,
+    );
   }
 
   compare(
@@ -100,8 +107,8 @@ export class GoogleVisionProvider implements VisionProvider {
     return this.call(
       'COMPARE',
       [before, after],
-      comparePrompt(inventoryContext(inventory)),
-      ApiComparison,
+      comparePrompt(inventoryContext(inventory, 'box_2d'), 'box_2d'),
+      GoogleApiComparison,
       ComparisonSchema,
       ['ANTES', 'DEPOIS'],
     );
@@ -208,7 +215,8 @@ export class GoogleVisionProvider implements VisionProvider {
       }
 
       const text = (response.text ?? '').trim();
-      const result = parseVisionJson(finalSchema, text);
+      // Caixas vêm em box_2d (formato nativo do Gemini) e são convertidas para {x, y, w, h}.
+      const result = parseVisionJson(finalSchema, text, fromBox2dResponse);
       if (result.ok) return { data: result.data, usage };
       const { problem } = result;
 

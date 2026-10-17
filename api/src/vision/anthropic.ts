@@ -9,7 +9,7 @@ import {
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
-  INVENTORY_PROMPT,
+  inventoryPrompt,
   InventorySchema,
   inventoryContext,
   parseVisionJson,
@@ -81,7 +81,7 @@ export class AnthropicVisionProvider implements VisionProvider {
   }
 
   inventory(image: Buffer): Promise<VisionResult<Inventory>> {
-    return this.call('INVENTORY', [image], INVENTORY_PROMPT, ApiInventory, InventorySchema);
+    return this.call('INVENTORY', [image], inventoryPrompt(), ApiInventory, InventorySchema);
   }
 
   compare(

@@ -18,6 +18,7 @@ import { CameraActions } from '@/components/CameraActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EventStepper } from '@/components/EventStepper';
 import { InventoryCard } from '@/components/InventoryCard';
+import { InventoryHighlight } from '@/components/InventoryHighlight';
 import { CopyField } from '@/components/CopyField';
 import { QueryError } from '@/components/QueryError';
 import { RoiOverlay } from '@/components/RoiOverlay';
@@ -47,6 +48,8 @@ import { formatRelative } from '@/lib/labels';
 export function CameraPage() {
   const { storeId = '', cameraId = '' } = useParams();
   const [eventsOpen, setEventsOpen] = useState(false);
+  // Item do inventário destacado (hover/foco na lista) no vídeo e na foto de referência.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const {
     data: camera,
@@ -79,6 +82,7 @@ export function CameraPage() {
   }
 
   const eventsPanel = <EventStepper cameraId={camera.id} />;
+  const highlighted = camera.inventory?.items.find((i) => i.id === highlightId) ?? null;
 
   return (
     <div className="flex h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden">
@@ -95,8 +99,13 @@ export function CameraPage() {
             hlsUrl={camera.playback.hls}
             online={camera.status === 'online'}
             forceHls={camera.stream?.isH265}
+            contentOverlay={
+              <>
+                <RoiOverlay roi={camera.roi} className={highlighted ? 'opacity-30' : undefined} />
+                <InventoryHighlight item={highlighted} />
+              </>
+            }
           >
-            <RoiOverlay roi={camera.roi} />
             <div className="absolute top-2 left-2 flex flex-wrap gap-1.5">
               <CameraStatusBadge status={camera.status} />
               <WorkerStateBadge state={camera.worker.state} />
@@ -128,7 +137,7 @@ export function CameraPage() {
             </Alert>
           )}
 
-          <InventoryCard camera={camera} />
+          <InventoryCard camera={camera} highlightId={highlightId} onHighlight={setHighlightId} />
         </div>
       </div>
 

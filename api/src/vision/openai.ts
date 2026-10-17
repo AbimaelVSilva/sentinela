@@ -9,7 +9,7 @@ import {
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
-  INVENTORY_PROMPT,
+  inventoryPrompt,
   InventorySchema,
   inventoryContext,
   parseVisionJson,
@@ -103,7 +103,7 @@ export class OpenAIVisionProvider implements VisionProvider {
       'INVENTORY',
       'inventory',
       [image],
-      INVENTORY_PROMPT,
+      inventoryPrompt(),
       ApiInventory,
       InventorySchema,
     );
