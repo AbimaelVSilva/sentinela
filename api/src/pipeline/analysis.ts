@@ -20,6 +20,7 @@ import { bus } from '../lib/bus';
 import { serializeEvent } from '../modules/events/serializer';
 import { readFile, saveFile } from '../storage';
 import { VisionError, type VisionProvider } from '../vision/provider';
+import { captureEventClip } from './clip';
 import { cropJpeg, imageInfo } from './image';
 import { sceneDiff } from './scene-diff';
 
@@ -217,6 +218,15 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
 
   const dto = serializeEvent(row!, baseline.snapshot, afterSnap);
   bus.emit('event.created', { cameraId, event: dto });
+  // Vídeo da passagem em segundo plano (não atrasa o próximo ciclo de análise).
+  void captureEventClip({
+    eventId: row!.id,
+    cameraId,
+    streamKey: camera.streamKey,
+    enteredAt: input.personEnteredAt,
+    leftAt: input.personLeftAt,
+    log,
+  });
   log.info({ cameraId, type, score, summary }, 'Evento gerado');
 
   if (

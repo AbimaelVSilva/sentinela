@@ -70,6 +70,25 @@ function handleCalibration(qc: QueryClient, msg: CalibrationMsg) {
   }
 }
 
+/** Evento já existente mudou (ex.: vídeo pronto): troca nas listas e no detalhe. */
+function handleEventUpdated(qc: QueryClient, msg: EventCreatedMsg) {
+  const { event } = msg;
+  for (const q of qc.getQueryCache().findAll({ queryKey: queryKeys.events(msg.cameraId) })) {
+    qc.setQueryData<InfiniteData<EventsPage>>(q.queryKey, (old) =>
+      old
+        ? {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              items: p.items.map((e) => (e.id === event.id ? event : e)),
+            })),
+          }
+        : old,
+    );
+  }
+  qc.setQueryData(queryKeys.event(event.id), event);
+}
+
 function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
   const { event } = msg;
   // A lista pode estar em cache com filtros diferentes: ['cameras', id, 'events', { types }].
@@ -159,6 +178,10 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
       es.addEventListener('event.created', (e) => {
         const msg = parse<EventCreatedMsg>(e);
         if (msg) handleEvent(qc, msg, notify);
+      });
+      es.addEventListener('event.updated', (e) => {
+        const msg = parse<EventCreatedMsg>(e);
+        if (msg) handleEventUpdated(qc, msg);
       });
     };
 

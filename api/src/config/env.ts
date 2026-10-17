@@ -20,6 +20,14 @@ const EnvSchema = z.object({
   MEDIAMTX_RTSP_URL: z.string().default('rtsp://localhost:8554'),
   MEDIAMTX_WEBRTC_URL: z.string().url().default('http://localhost:8889'),
   MEDIAMTX_HLS_URL: z.string().url().default('http://localhost:8888'),
+  MEDIAMTX_PLAYBACK_URL: z.string().url().default('http://localhost:9996'),
+  CLIP_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  CLIP_PRE_SECONDS: num(3),
+  CLIP_POST_SECONDS: num(2),
+  CLIP_MAX_SECONDS: num(60),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
   VISION_PROVIDER: z.enum(['anthropic', 'openai', 'google', 'mock']).default('anthropic'),

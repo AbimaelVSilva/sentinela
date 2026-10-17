@@ -23,6 +23,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
+      - recordings:/recordings
     environment:
       # IPs/hosts anunciados como candidatos ICE do WebRTC (separados por vírgula).
       MTX_WEBRTCADDITIONALHOSTS: ${MEDIAMTX_WEBRTC_HOSTS:-127.0.0.1}
@@ -35,8 +36,10 @@ services:
       - '8189:8189/udp' # WebRTC ICE
       - '8888:8888' # HLS
       - '9997:9997' # API de controle
+      - '127.0.0.1:9996:9996' # Playback (recorte das gravações pela API)
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
 volumes:
   pgdata:
+  recordings:

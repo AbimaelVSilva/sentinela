@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { HistoryIcon, LoaderCircleIcon } from 'lucide-react';
+import { FilmIcon, HistoryIcon, LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { EventDetailDialog } from '@/components/EventDetailDialog';
@@ -185,8 +185,13 @@ function StepItem({
           </time>
         </div>
         <p className="truncate text-sm text-muted-foreground">{event.summary}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
           Ocupação: {formatDuration(event.durationSeconds)}
+          {event.clip && (
+            <span className="inline-flex items-center gap-1" title="Tem vídeo da passagem">
+              <FilmIcon className="size-3" /> vídeo
+            </span>
+          )}
         </p>
       </button>
     </li>

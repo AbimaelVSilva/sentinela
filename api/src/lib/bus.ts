@@ -49,6 +49,8 @@ export interface BusEvents {
   };
   /** Novo evento classificado. Público via SSE. */
   'event.created': { cameraId: string; event: EventDto };
+  /** Evento existente atualizado (ex.: vídeo da passagem ficou pronto). Público via SSE. */
+  'event.updated': { cameraId: string; event: EventDto };
   /** Interno: configuração da câmera mudou (ROI, monitoramento, baseline, key). */
   'camera.updated': { cameraId: string };
   /** Interno: câmera removida. */
@@ -61,6 +63,7 @@ export const PUBLIC_EVENTS = [
   'camera.state',
   'camera.calibration',
   'event.created',
+  'event.updated',
 ] as const satisfies readonly BusEventName[];
 
 class TypedBus {

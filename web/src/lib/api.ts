@@ -227,6 +227,8 @@ export interface SentinelaEvent {
   createdAt: string;
   before: Snapshot | null;
   after: Snapshot | null;
+  /** Vídeo curto da passagem; fica pronto alguns segundos depois do evento. */
+  clip: { url: string; durationSeconds: number | null } | null;
 }
 
 export interface StoreCamera extends Camera {

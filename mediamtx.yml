@@ -26,7 +26,11 @@ apiAllowOrigins: ['*']
 
 metrics: no
 pprof: no
-playback: no
+
+# Playback: a API recorta trechos das gravações (vídeo curto de cada evento).
+# Só acessado internamente pela API (não é exposto ao navegador).
+playback: yes
+playbackAddress: :9996
 
 # RTSP: usado internamente pela API (ffmpeg) para ler frames.
 rtsp: yes
@@ -66,4 +70,12 @@ paths:
   # Paths dinâmicos: qualquer live/<streamKey> é aceito aqui; o hook de auth
   # decide se a chave existe.
   '~^live/[A-Za-z0-9_-]+$':
+    # Gravação contínua em buffer circular: o que tem mais de 1 h é apagado.
+    # Os clipes dos eventos são copiados para o storage da API antes disso.
+    record: yes
+    recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+    recordFormat: fmp4
+    recordPartDuration: 1s
+    recordSegmentDuration: 5m
+    recordDeleteAfter: 1h
   all_others:

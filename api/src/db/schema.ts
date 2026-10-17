@@ -109,6 +109,9 @@ export const events = pgTable(
     summary: text('summary').notNull().default(''),
     details: jsonb('details').$type<EventDetails>(),
     sceneDiffScore: real('scene_diff_score'),
+    /** Vídeo curto da passagem (mp4 no storage), recortado das gravações do MediaMTX. */
+    clipPath: text('clip_path'),
+    clipDuration: real('clip_duration'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('events_camera_created_idx').on(t.cameraId, sql`${t.createdAt} desc`)],

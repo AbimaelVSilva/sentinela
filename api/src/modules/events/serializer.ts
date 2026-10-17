@@ -26,6 +26,8 @@ export interface EventDto {
   createdAt: string;
   before: SnapshotDto | null;
   after: SnapshotDto | null;
+  /** Vídeo curto da passagem (gerado alguns segundos depois do evento). */
+  clip: { url: string; durationSeconds: number | null } | null;
 }
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -66,5 +68,6 @@ export function serializeEvent(
     createdAt: e.createdAt.toISOString(),
     before: serializeSnapshot(before),
     after: serializeSnapshot(after),
+    clip: e.clipPath ? { url: fileUrl(e.clipPath), durationSeconds: e.clipDuration } : null,
   };
 }

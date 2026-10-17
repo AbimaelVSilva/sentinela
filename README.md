@@ -101,6 +101,19 @@ Novos usuários são cadastrados por quem já está logado, no menu do usuário 
 
 ---
 
+### Vídeo de cada evento
+
+O MediaMTX grava cada câmera continuamente em segmentos de 5 min e apaga o que tem mais de 1 h
+(`mediamtx.yml`, buffer circular no volume `recordings`). Quando um evento é gerado, a API pede ao
+servidor de playback do MediaMTX (`MEDIAMTX_PLAYBACK_URL`, porta 9996, só interna) um MP4 cobrindo de
+`CLIP_PRE_SECONDS` antes da entrada até `CLIP_POST_SECONDS` depois da saída (no máximo
+`CLIP_MAX_SECONDS`, mantendo o final), salva em `storage/<câmera>/clip-<evento>.mp4` e avisa a UI por
+SSE (`event.updated`). O vídeo aparece no detalhe do evento (e um ícone de filme no stepper) cerca de
+1–3 s depois do evento. Sem gravação disponível, o evento segue normalmente, só sem vídeo.
+Desligue com `CLIP_ENABLED=false`. Os clipes ficam no storage enquanto o evento existir.
+
+---
+
 ## Requisitos
 
 - Node.js 20+ (testado com 22) e npm 10+
@@ -328,7 +341,7 @@ POST   /mediamtx/auth                  hook do MediaMTX
 GET    /settings                       IA/modelo em uso e providers com chave
 PATCH  /settings                       { vision: { provider?, model?, effort? } }
 GET    /settings/models?provider=      modelos disponíveis na conta do provider
-GET    /stream?cameraId=               SSE: camera.status, camera.state, camera.calibration, event.created
+GET    /stream?cameraId=               SSE: camera.status, camera.state, camera.calibration, event.created, event.updated
 GET    /files/*                        snapshots salvos
 ```
 

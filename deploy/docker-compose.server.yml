@@ -36,6 +36,7 @@ services:
     image: bluenviron/mediamtx:1.21.2
     volumes:
       - ../mediamtx.yml:/mediamtx.yml:ro
+      - recordings:/recordings
     environment:
       MTX_WEBRTCADDITIONALHOSTS: ${PUBLIC_HOST:?defina PUBLIC_HOST}
       MTX_AUTHHTTPADDRESS: http://api:3333/mediamtx/auth
@@ -45,6 +46,7 @@ services:
       - '127.0.0.1:18889:8889' # WebRTC/WHEP (via nginx)
       - '127.0.0.1:18888:8888' # HLS (via nginx)
       - '127.0.0.1:19997:9997' # API de controle
+      - '127.0.0.1:19996:9996' # Playback (recorte das gravações)
       - '8189:8189/udp' # ICE do WebRTC (público)
     mem_limit: 512m
 
@@ -63,6 +65,7 @@ services:
       PUBLIC_RTMP_URL: ${PUBLIC_RTMP_URL:-rtmp://${PUBLIC_HOST}:1935}
       MEDIAMTX_API_URL: http://mediamtx:9997
       MEDIAMTX_RTSP_URL: rtsp://mediamtx:8554
+      MEDIAMTX_PLAYBACK_URL: http://mediamtx:9996
       MEDIAMTX_WEBRTC_URL: ${PUBLIC_BASE_URL}/mtx/webrtc
       MEDIAMTX_HLS_URL: ${PUBLIC_BASE_URL}/mtx/hls
       STORAGE_DIR: ./storage
@@ -123,4 +126,5 @@ services:
 
 volumes:
   pgdata:
+  recordings:
   storage:

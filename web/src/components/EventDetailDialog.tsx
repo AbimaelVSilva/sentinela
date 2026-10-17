@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ImageOffIcon } from 'lucide-react';
+import { FilmIcon, ImageOffIcon, LoaderCircleIcon } from 'lucide-react';
+import { useState } from 'react';
 import { EventIcon } from '@/components/EventIcon';
 import { RoiOverlay } from '@/components/RoiOverlay';
 import { Badge } from '@/components/ui/badge';
@@ -109,6 +110,8 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
         {event.summary}
       </p>
 
+      <ClipView event={event} />
+
       <div className="grid gap-3 md:grid-cols-2">
         <SnapshotView
           title="Antes"
@@ -172,6 +175,48 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
         </Meta>
       </dl>
     </>
+  );
+}
+
+/** Tempo em que ainda faz sentido esperar o vídeo ficar pronto. */
+const CLIP_PENDING_MS = 3 * 60_000;
+
+function ClipView({ event }: { event: SentinelaEvent }) {
+  // Momento em que o detalhe foi aberto (estável entre renders).
+  const [openedAt] = useState(() => Date.now());
+  // Oclusão prolongada não gera vídeo (a pessoa ainda não saiu).
+  if (event.details?.reason === 'occlusion_timeout') return null;
+  if (event.clip) {
+    return (
+      <figure className="space-y-1.5">
+        <figcaption className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <FilmIcon className="size-3.5" /> Vídeo da passagem
+          {event.clip.durationSeconds != null && (
+            <span className="font-normal normal-case">
+              {Math.round(event.clip.durationSeconds)} s
+            </span>
+          )}
+        </figcaption>
+        <video
+          key={event.clip.url}
+          src={fileUrl(event.clip.url)}
+          className="aspect-video max-h-[45svh] w-full rounded-lg bg-black object-contain"
+          controls
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
+      </figure>
+    );
+  }
+  const recent = openedAt - new Date(event.createdAt).getTime() < CLIP_PENDING_MS;
+  if (!recent) return null;
+  return (
+    <div className="flex aspect-[32/9] w-full items-center justify-center gap-2 rounded-lg bg-muted text-sm text-muted-foreground">
+      <LoaderCircleIcon className="size-4 animate-spin" /> Gerando o vídeo da passagem…
+    </div>
   );
 }
 
