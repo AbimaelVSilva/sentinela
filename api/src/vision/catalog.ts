@@ -59,7 +59,7 @@ const OPENAI_VISION = /^(gpt-4o|gpt-4\.1|gpt-5|o[1-9])/;
 const OPENAI_EXCLUDE =
   /(audio|realtime|transcribe|tts|search|image|codex|embedding|moderation|instruct)/;
 const GOOGLE_EXCLUDE =
-  /(embedding|tts|image|live|audio|aqa|imagen|veo|learnlm|robotics|computer-use)/;
+  /(embedding|tts|image|live|audio|aqa|imagen|veo|learnlm|robotics|computer-use|transcribe|nano-banana|customtools)/;
 
 const cache = new Map<VisionProviderId, { at: number; models: string[] }>();
 const TTL_MS = 10 * 60 * 1000;
