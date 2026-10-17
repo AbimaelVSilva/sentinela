@@ -84,6 +84,23 @@ valor | null } }` (`null` volta ao padrão).
 
 ---
 
+### Login e usuários
+
+O painel exige login. O seed (`npm run db:seed`, idempotente; no servidor roda na inicialização do
+container) cria o usuário inicial **`dev` / `2306`** — troque com `SEED_USERNAME`/`SEED_PASSWORD`.
+Novos usuários são cadastrados por quem já está logado, no menu do usuário → **Usuários**.
+
+- `POST /auth/login` devolve um token de sessão aleatório (256 bits), válido por 7 dias; o banco guarda
+  só o SHA-256 dele (`sessions`) e as senhas ficam em hash scrypt (`users`). `POST /auth/logout`
+  revoga o token.
+- Todas as rotas exigem `Authorization: Bearer <token>`, exceto `GET /health`, `POST /auth/login` e o
+  hook interno `POST /mediamtx/auth`. O SSE e as imagens (que o navegador busca sem poder enviar
+  header) aceitam `?token=`; o token é mascarado nos logs.
+- O vídeo ao vivo (WebRTC/HLS do MediaMTX) não passa por esse login: o caminho depende da chave de
+  transmissão, que só é obtida pela API autenticada.
+
+---
+
 ## Requisitos
 
 - Node.js 20+ (testado com 22) e npm 10+
@@ -99,6 +116,7 @@ cp web/.env.example web/.env
 npm install
 npm run infra:up                  # Postgres + MediaMTX
 npm run db:migrate
+npm run db:seed                   # cria o usuário inicial: dev / 2306
 npm run model:download            # YOLO11n → api/models/yolo.onnx (ver "Modelo YOLO")
 npm run dev                       # API :3333 + front :5173
 ```
@@ -292,7 +310,10 @@ iniciais.
 ## API
 
 ```
-GET    /health
+GET    /health                         (público)
+POST   /auth/login                     (público) { username, password } → { token, expiresAt, user }
+POST   /auth/logout                    GET /auth/me
+GET    /users                          POST /users { username, name?, password }   DELETE /users/:id
 GET    /stores                         POST /stores
 GET    /stores/:id                     PATCH /stores/:id      DELETE /stores/:id
 POST   /stores/:id/cameras             → { camera, rtmp: { serverUrl, streamKey, fullUrl } }

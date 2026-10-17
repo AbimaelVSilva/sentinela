@@ -123,6 +123,33 @@ export interface EventDetails {
   crop?: { x: number; y: number; w: number; h: number } | null;
 }
 
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Sempre em minúsculas. */
+  username: text('username').notNull().unique(),
+  name: text('name'),
+  /** scrypt: `scrypt$<salt hex>$<hash hex>`. */
+  passwordHash: text('password_hash').notNull(),
+  ...timestamps,
+});
+
+/** Sessões de login: o token só existe no cliente; aqui fica o SHA-256 dele. */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+export type User = typeof users.$inferSelect;
+
 /** Configurações globais editáveis pelo painel (uma linha, id = 'default'). */
 export const appSettings = pgTable('app_settings', {
   id: text('id').primaryKey(),

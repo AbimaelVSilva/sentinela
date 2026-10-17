@@ -14,6 +14,8 @@ import { env } from './config/env';
 import { cameraRoutes } from './modules/cameras/routes';
 import { eventRoutes } from './modules/events/routes';
 import { sseRoutes } from './modules/events/sse';
+import { registerAuthGuard } from './modules/auth/guard';
+import { authRoutes } from './modules/auth/routes';
 import { healthRoutes } from './modules/health/routes';
 import { mediamtxAuthRoutes } from './modules/mediamtx/auth';
 import { settingsRoutes } from './modules/settings/routes';
@@ -26,6 +28,15 @@ export async function buildApp() {
   const app = Fastify({
     logger: {
       level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+      // Nunca loga o token de sessão que vai em ?token= (SSE e imagens).
+      serializers: {
+        req: (req: { method: string; url: string; hostname?: string; ip?: string }) => ({
+          method: req.method,
+          url: req.url.replace(/([?&]token=)[^&]+/, '$1***'),
+          host: req.hostname,
+          remoteAddress: req.ip,
+        }),
+      },
       transport:
         env.NODE_ENV === 'development'
           ? {
@@ -45,6 +56,9 @@ export async function buildApp() {
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await app.register(sensible);
+
+  // Autenticação por token em todas as rotas, exceto as públicas (ver auth/guard.ts).
+  registerAuthGuard(app);
 
   fs.mkdirSync(env.STORAGE_DIR, { recursive: true });
   await app.register(fastifyStatic, { root: env.STORAGE_DIR, prefix: '/files/' });
@@ -72,6 +86,7 @@ export async function buildApp() {
   });
 
   await app.register(healthRoutes);
+  await app.register(authRoutes);
   await app.register(storeRoutes);
   await app.register(cameraRoutes);
   await app.register(eventRoutes);

@@ -15,5 +15,5 @@ COPY api api
 WORKDIR /app/api
 ENV NODE_ENV=production
 
-# Aplica as migrations e sobe a API (tsx, sem etapa de build).
-CMD ["sh", "-c", "npx tsx src/db/migrate.ts && exec npx tsx src/server.ts"]
+# Aplica as migrations, garante o usuário inicial (seed idempotente) e sobe a API.
+CMD ["sh", "-c", "npx tsx src/db/migrate.ts && npx tsx src/db/seed.ts && exec npx tsx src/server.ts"]

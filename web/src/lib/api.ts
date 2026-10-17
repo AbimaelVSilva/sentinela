@@ -1,3 +1,5 @@
+import { getToken, setToken, withToken } from './auth-token';
+
 export const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') ??
   'http://localhost:3333';
@@ -20,16 +22,23 @@ export async function apiFetch<T>(
   init: Omit<RequestInit, 'body'> & { body?: Json } = {},
 ): Promise<T> {
   const { body, headers, ...rest } = init;
+  const token = getToken();
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...rest,
-      headers: body !== undefined ? { 'content-type': 'application/json', ...headers } : headers,
+      headers: {
+        ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError(0, 'Não foi possível conectar à API.', null);
   }
+  // Sessão inválida/expirada: descarta o token; o app redireciona para o login.
+  if (res.status === 401 && token && path !== '/auth/login') setToken(null);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data: unknown = text ? safeJson(text) : null;
@@ -52,7 +61,7 @@ function safeJson(text: string): unknown {
 }
 
 export const fileUrl = (path: string | null | undefined) =>
-  path ? (path.startsWith('http') ? path : `${API_URL}${path}`) : undefined;
+  path ? (path.startsWith('http') ? path : withToken(`${API_URL}${path}`)) : undefined;
 
 // ---------- Tipos da API ----------
 
@@ -285,8 +294,31 @@ export interface ModelList {
   error?: string;
 }
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string | null;
+}
+export interface UserRow extends AuthUser {
+  createdAt: string;
+}
+export interface LoginResult {
+  token: string;
+  expiresAt: string;
+  user: AuthUser;
+}
+
 export const api = {
   health: () => apiFetch<Health>('/health'),
+
+  login: (username: string, password: string) =>
+    apiFetch<LoginResult>('/auth/login', { method: 'POST', body: { username, password } }),
+  logout: () => apiFetch<void>('/auth/logout', { method: 'POST' }),
+  me: () => apiFetch<{ user: AuthUser }>('/auth/me'),
+  listUsers: () => apiFetch<UserRow[]>('/users'),
+  createUser: (body: { username: string; name?: string | null; password: string }) =>
+    apiFetch<UserRow>('/users', { method: 'POST', body: { ...body } }),
+  deleteUser: (id: string) => apiFetch<void>(`/users/${id}`, { method: 'DELETE' }),
 
   listStores: () => apiFetch<Store[]>('/stores'),
   getStore: (id: string) => apiFetch<Store>(`/stores/${id}`),
@@ -312,7 +344,7 @@ export const api = {
   calibrate: (id: string, opts: { force?: boolean } = {}) =>
     apiFetch<{ accepted: true }>(`/cameras/${id}/calibrate`, { method: 'POST', body: { ...opts } }),
   snapshotUrl: (id: string, bust?: number) =>
-    `${API_URL}/cameras/${id}/snapshot${bust ? `?t=${bust}` : ''}`,
+    withToken(`${API_URL}/cameras/${id}/snapshot${bust ? `?t=${bust}` : ''}`),
 
   listEvents: (cameraId: string, opts: { cursor?: string | null; types?: EventType[] } = {}) => {
     const q = new URLSearchParams({ limit: '20' });
@@ -337,5 +369,7 @@ export const queryKeys = {
   event: (id: string) => ['events', id] as const,
   calibration: (cameraId: string) => ['cameras', cameraId, 'calibration'] as const,
   settings: ['settings'] as const,
+  me: ['auth', 'me'] as const,
+  users: ['users'] as const,
   models: (provider: string) => ['settings', 'models', provider] as const,
 };

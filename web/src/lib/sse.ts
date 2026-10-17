@@ -1,5 +1,6 @@
 import { type InfiniteData, type QueryClient, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { getToken, onTokenChange } from './auth-token';
 import { toast } from 'sonner';
 import {
   API_URL,
@@ -104,6 +105,8 @@ function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
 export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
   const qc = useQueryClient();
   const notify = opts.notify ?? true;
+  // Reconecta quando o token muda (login/logout); sem token não conecta.
+  const token = useSyncExternalStore(onTokenChange, getToken);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -119,9 +122,12 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
       }
     };
 
+    if (!token) return;
+
     const connect = () => {
       const url = new URL(`${API_URL}/stream`);
       if (cameraId) url.searchParams.set('cameraId', cameraId);
+      url.searchParams.set('token', token);
       es = new EventSource(url);
 
       es.onopen = () => {
@@ -162,5 +168,5 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
       if (retry) clearTimeout(retry);
       es?.close();
     };
-  }, [cameraId, qc, notify]);
+  }, [cameraId, qc, notify, token]);
 }

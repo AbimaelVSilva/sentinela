@@ -2,7 +2,7 @@
   "name": "sentinela",
   "private": true,
   "version": "0.1.0",
-  "description": "Sentinela — protótipo de monitoramento de loja autônoma com IA",
+  "description": "Sentinela \u2014 prot\u00f3tipo de monitoramento de loja aut\u00f4noma com IA",
   "workspaces": [
     "api",
     "web"
@@ -18,7 +18,8 @@
     "lint": "npm run lint -w api && npm run lint -w web",
     "format": "prettier --write .",
     "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
-    "test": "npm run test -w api && npm run test -w web"
+    "test": "npm run test -w api && npm run test -w web",
+    "db:seed": "npm run db:seed -w api"
   },
   "engines": {
     "node": ">=20"
