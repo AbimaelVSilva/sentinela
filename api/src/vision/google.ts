@@ -38,6 +38,11 @@ const PRICING: [RegExp, number, number][] = [
   [/^gemini-2\.5-pro/, 1.25, 10],
 ];
 
+const RETRY_DELAYS_MS = [2000, 5000];
+const isTransient = (err: unknown) =>
+  err instanceof ApiError && [429, 500, 503].includes(err.status);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /** A família Gemini 3 recomenda manter a temperatura padrão; nas anteriores usamos 0. */
 const keepDefaultTemperature = (model: string) => /^gemini-([3-9]|\d{2})/.test(model);
 
@@ -102,6 +107,27 @@ export class GoogleVisionProvider implements VisionProvider {
     );
   }
 
+  /** Repete em erros transitórios (alta demanda/limite por minuto) com espera crescente. */
+  private async generateWithRetry(
+    client: GoogleGenAI,
+    kind: string,
+    params: GenerateParams,
+  ): Promise<GenerateContentResponse> {
+    for (let i = 0; ; i++) {
+      try {
+        return await client.models.generateContent(params);
+      } catch (err) {
+        const delay = RETRY_DELAYS_MS[i];
+        if (delay === undefined || !isTransient(err)) throw err;
+        this.log.warn(
+          { kind, status: (err as ApiError).status, delay },
+          'Google indisponível; tentando de novo',
+        );
+        await sleep(delay);
+      }
+    }
+  }
+
   private async call<A extends z.ZodType, S extends z.ZodType>(
     kind: string,
     images: Buffer[],
@@ -128,7 +154,7 @@ export class GoogleVisionProvider implements VisionProvider {
       let response: GenerateContentResponse;
       const started = Date.now();
       try {
-        response = await client.models.generateContent({
+        response = await this.generateWithRetry(client, kind, {
           model,
           contents,
           config: {
@@ -196,6 +222,8 @@ export class GoogleVisionProvider implements VisionProvider {
     throw new VisionError('Falha inesperada na chamada de visão', usage);
   }
 }
+
+type GenerateParams = Parameters<GoogleGenAI['models']['generateContent']>[0];
 
 function describeApiError(err: unknown): string {
   if (err instanceof VisionError) return err.message;

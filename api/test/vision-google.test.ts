@@ -85,3 +85,24 @@ describe('GoogleVisionProvider', () => {
     await expect(p.validateScene(img)).rejects.toThrow(/GOOGLE_API_KEY/);
   });
 });
+
+describe('GoogleVisionProvider: erros transitórios', () => {
+  it('repete após 503 e conclui', async () => {
+    vi.useFakeTimers();
+    try {
+      const { ApiError } = await import('@google/genai');
+      const generateContent = vi
+        .fn()
+        .mockRejectedValueOnce(new ApiError({ message: 'high demand', status: 503 }))
+        .mockResolvedValueOnce(reply(SCENE));
+      const client = { models: { generateContent } } as unknown as GoogleGenAI;
+      const p = new GoogleVisionProvider({ model: 'gemini-flash-latest', client }, silentLog);
+      const pending = p.validateScene(img);
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(pending).resolves.toMatchObject({ data: { viewAngle: 'frontal' } });
+      expect(generateContent).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

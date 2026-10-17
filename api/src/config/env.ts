@@ -34,7 +34,7 @@ const EnvSchema = z.object({
     .or(z.literal('').transform(() => undefined)),
   GOOGLE_API_KEY: z.string().optional().default(''),
   GEMINI_API_KEY: z.string().optional().default(''),
-  GOOGLE_MODEL: z.string().default('gemini-2.5-flash'),
+  GOOGLE_MODEL: z.string().default('gemini-flash-latest'),
   VISION_PRICE_INPUT_PER_MTOK: optionalNum(),
   VISION_PRICE_OUTPUT_PER_MTOK: optionalNum(),
   VISION_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),

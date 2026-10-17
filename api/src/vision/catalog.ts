@@ -39,7 +39,7 @@ export function providerCatalog(): ProviderInfo[] {
       configured: !!(env.GOOGLE_API_KEY || env.GEMINI_API_KEY),
       keyEnv: 'GOOGLE_API_KEY',
       defaultModel: env.GOOGLE_MODEL,
-      suggestedModels: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
+      suggestedModels: ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-flash-lite-latest'],
     },
     {
       id: 'mock',
@@ -105,7 +105,11 @@ export async function listModels(id: VisionProviderId): Promise<ModelList> {
           models.push(name);
         }
       }
-      models.sort().reverse();
+      // Aliases *-latest primeiro (acompanham o modelo atual), depois os mais novos.
+      models.sort(
+        (a, b) =>
+          Number(b.endsWith('-latest')) - Number(a.endsWith('-latest')) || b.localeCompare(a),
+      );
     }
     if (models.length === 0) return { models: info.suggestedModels, source: 'suggested' };
     cache.set(id, { at: Date.now(), models });

@@ -130,7 +130,7 @@ A API e o `docker-compose.yml` leem o `.env` da **raiz**. O front lê `web/.env`
 | `OPENAI_MODEL`                                   | `gpt-5.1`                                                 | modelo da OpenAI com visão                                |
 | `OPENAI_BASE_URL`                                | —                                                         | endpoint compatível opcional (Azure OpenAI, proxy)        |
 | `GOOGLE_API_KEY`                                 | —                                                         | chave da API Gemini (`VISION_PROVIDER=google`)            |
-| `GOOGLE_MODEL`                                   | `gemini-2.5-flash`                                        | modelo Gemini                                             |
+| `GOOGLE_MODEL`                                   | `gemini-flash-latest`                                     | modelo Gemini                                             |
 | `VISION_PRICE_INPUT_PER_MTOK` / `..._OUTPUT_...` | —                                                         | preço por milhão de tokens para a estimativa de custo     |
 | `INVENTORY_REFRESH_EVERY`                        | `20`                                                      | refaz o inventário a cada N eventos                       |
 | `ANALYSIS_FPS`                                   | `4`                                                       | frames/s analisados por câmera                            |
