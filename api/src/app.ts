@@ -16,6 +16,7 @@ import { eventRoutes } from './modules/events/routes';
 import { sseRoutes } from './modules/events/sse';
 import { healthRoutes } from './modules/health/routes';
 import { mediamtxAuthRoutes } from './modules/mediamtx/auth';
+import { settingsRoutes } from './modules/settings/routes';
 import { storeRoutes } from './modules/stores/routes';
 
 // Mensagens de validação do Zod em português.
@@ -76,6 +77,7 @@ export async function buildApp() {
   await app.register(eventRoutes);
   await app.register(sseRoutes);
   await app.register(mediamtxAuthRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }

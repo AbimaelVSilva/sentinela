@@ -2,11 +2,15 @@ import { buildApp } from './app';
 import { env } from './config/env';
 import { sqlClient } from './db/client';
 import { StatusPoller } from './modules/mediamtx/status-poller';
+import { loadVisionSettings } from './modules/settings/service';
 import { WorkerManager } from './pipeline/worker-manager';
 import { setServices } from './services';
 import { getVisionProvider } from './vision';
 
 const app = await buildApp();
+await loadVisionSettings().catch((err: unknown) =>
+  app.log.warn({ err }, 'Configurações não carregadas do banco; usando o .env'),
+);
 const poller = new StatusPoller(app.log.child({ module: 'status-poller' }));
 const vision = getVisionProvider(app.log);
 const workers = new WorkerManager(vision, app.log.child({ module: 'pipeline' }));

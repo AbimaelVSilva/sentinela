@@ -234,6 +234,34 @@ export interface CameraPatch {
   monitoringEnabled?: boolean;
 }
 
+export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'mock';
+export type Effort = 'low' | 'medium' | 'high';
+
+export interface ProviderInfo {
+  id: VisionProviderId;
+  label: string;
+  configured: boolean;
+  keyEnv: string | null;
+  defaultModel: string;
+  suggestedModels: string[];
+}
+
+export interface AppSettings {
+  vision: {
+    provider: VisionProviderId;
+    model: string;
+    effort: Effort;
+    models: Partial<Record<VisionProviderId, string>>;
+  };
+  providers: ProviderInfo[];
+}
+
+export interface ModelList {
+  models: string[];
+  source: 'live' | 'suggested';
+  error?: string;
+}
+
 export const api = {
   health: () => apiFetch<Health>('/health'),
 
@@ -270,6 +298,12 @@ export const api = {
     return apiFetch<EventsPage>(`/cameras/${cameraId}/events?${q}`);
   },
   getEvent: (id: string) => apiFetch<SentinelaEvent>(`/events/${id}`),
+
+  getSettings: () => apiFetch<AppSettings>('/settings'),
+  updateSettings: (vision: { provider?: VisionProviderId; model?: string; effort?: Effort }) =>
+    apiFetch<AppSettings>('/settings', { method: 'PATCH', body: { vision } }),
+  listModels: (provider: VisionProviderId) =>
+    apiFetch<ModelList>(`/settings/models?provider=${provider}`),
 };
 
 export const queryKeys = {
@@ -279,4 +313,6 @@ export const queryKeys = {
   events: (cameraId: string) => ['cameras', cameraId, 'events'] as const,
   event: (id: string) => ['events', id] as const,
   calibration: (cameraId: string) => ['cameras', cameraId, 'calibration'] as const,
+  settings: ['settings'] as const,
+  models: (provider: string) => ['settings', 'models', provider] as const,
 };

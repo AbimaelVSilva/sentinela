@@ -22,7 +22,7 @@ const EnvSchema = z.object({
   MEDIAMTX_HLS_URL: z.string().url().default('http://localhost:8888'),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
-  VISION_PROVIDER: z.enum(['anthropic', 'openai', 'mock']).default('anthropic'),
+  VISION_PROVIDER: z.enum(['anthropic', 'openai', 'google', 'mock']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   VISION_MODEL: z.string().default('claude-sonnet-5-5'),
   OPENAI_API_KEY: z.string().optional().default(''),
@@ -32,6 +32,9 @@ const EnvSchema = z.object({
     .url()
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  GOOGLE_API_KEY: z.string().optional().default(''),
+  GEMINI_API_KEY: z.string().optional().default(''),
+  GOOGLE_MODEL: z.string().default('gemini-2.5-flash'),
   VISION_PRICE_INPUT_PER_MTOK: optionalNum(),
   VISION_PRICE_OUTPUT_PER_MTOK: optionalNum(),
   VISION_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),

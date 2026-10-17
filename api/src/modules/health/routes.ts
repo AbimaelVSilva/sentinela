@@ -5,6 +5,7 @@ import { env } from '../../config/env';
 import fs from 'node:fs';
 import { db } from '../../db/client';
 import { visionModel } from '../../vision';
+import { getVisionSettings } from '../settings/service';
 
 const HealthResponse = z.object({
   status: z.enum(['ok', 'degraded']),
@@ -42,7 +43,7 @@ export const healthRoutes: FastifyPluginAsyncZod = async (app) => {
       db: dbOk,
       mediamtx: mtxOk,
       detector: fs.existsSync(env.YOLO_MODEL_PATH),
-      vision: { provider: env.VISION_PROVIDER, model: visionModel() },
+      vision: { provider: getVisionSettings().provider, model: visionModel() },
       time: new Date().toISOString(),
     };
   });

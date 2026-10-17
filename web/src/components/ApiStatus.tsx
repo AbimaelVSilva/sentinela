@@ -48,7 +48,9 @@ export function ApiStatus() {
             </span>
             <span>
               Detector YOLO: {data.detector ? 'ok' : 'modelo ausente'} · IA:{' '}
-              {data.vision.provider === 'mock' ? 'simulada (mock)' : data.vision.model}
+              {data.vision.provider === 'mock'
+                ? 'simulada (mock)'
+                : `${data.vision.provider} · ${data.vision.model}`}
             </span>
           </span>
         ) : (

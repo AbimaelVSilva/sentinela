@@ -129,6 +129,8 @@ A API e o `docker-compose.yml` leem o `.env` da **raiz**. O front lê `web/.env`
 | `OPENAI_API_KEY`                                 | —                                                         | chave da OpenAI (`VISION_PROVIDER=openai`)                |
 | `OPENAI_MODEL`                                   | `gpt-5.1`                                                 | modelo da OpenAI com visão                                |
 | `OPENAI_BASE_URL`                                | —                                                         | endpoint compatível opcional (Azure OpenAI, proxy)        |
+| `GOOGLE_API_KEY`                                 | —                                                         | chave da API Gemini (`VISION_PROVIDER=google`)            |
+| `GOOGLE_MODEL`                                   | `gemini-2.5-flash`                                        | modelo Gemini                                             |
 | `VISION_PRICE_INPUT_PER_MTOK` / `..._OUTPUT_...` | —                                                         | preço por milhão de tokens para a estimativa de custo     |
 | `INVENTORY_REFRESH_EVERY`                        | `20`                                                      | refaz o inventário a cada N eventos                       |
 | `ANALYSIS_FPS`                                   | `4`                                                       | frames/s analisados por câmera                            |
@@ -247,7 +249,11 @@ a API sobe normalmente, mas o monitoramento fica inativo (aviso no log e no indi
 
 ## IA de visão
 
-Escolha o provider com `VISION_PROVIDER` e reinicie a API:
+As chaves ficam no `.env` do servidor; **qual IA e qual modelo usar** se escolhe no painel, pelo botão
+**Configurações** (engrenagem no topo). A escolha fica salva no banco (`app_settings`) e vale na
+próxima análise, sem reiniciar. O painel lista os modelos disponíveis na conta de cada provider e só
+habilita as IAs com chave configurada. `VISION_PROVIDER` e os `*_MODEL` do `.env` são só os valores
+iniciais.
 
 | Provider    | Variáveis                                                              | Implementação                                             |
 | ----------- | ---------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -255,13 +261,14 @@ Escolha o provider com `VISION_PROVIDER` e reinicie a API:
 | `openai`    | `OPENAI_API_KEY`, `OPENAI_MODEL` (padrão `gpt-5.1`), `OPENAI_BASE_URL` | `api/src/vision/openai.ts` (Responses API)                |
 | `mock`      | —                                                                      | `api/src/vision/mock.ts` (heurístico, só desenvolvimento) |
 
-- Os dois providers reais usam os mesmos prompts e schemas Zod (`api/src/vision/prompts.ts`:
+- Os providers reais usam os mesmos prompts e schemas Zod (`api/src/vision/prompts.ts`:
   `VALIDATE_SCENE`, `INVENTORY`, `COMPARE`), saída estruturada por JSON Schema, validação Zod com
   normalização de regiões/confianças e um retry com a mensagem de erro.
 - `VISION_EFFORT` vira `output_config.effort` (Anthropic) ou `reasoning.effort` (OpenAI, modelos
-  `gpt-5*`/`o*`). `temperature: 0` só é enviado aos modelos que aceitam.
+  `gpt-5*`/`o*`); o Gemini decide sozinho quanto raciocinar. `temperature: 0` só é enviado aos
+  modelos que aceitam.
 - Anthropic: fallback server-side (`fallbacks: "default"`) se o modelo recusar por política.
-  OpenAI: recusa (`refusal`) ou resposta incompleta viram `analysis_failed`.
+  OpenAI e Google: recusa/bloqueio ou resposta truncada viram `analysis_failed`.
 - Sem chave, a API sobe normalmente; as análises falham com mensagem clara até a chave ser definida.
 - O custo estimado usa uma tabela interna de preços; para modelos fora dela (ex.: `gpt-5.1`),
   defina `VISION_PRICE_INPUT_PER_MTOK` e `VISION_PRICE_OUTPUT_PER_MTOK`.
@@ -285,6 +292,9 @@ POST   /cameras/:id/inventory/refresh  refaz o INVENTORY sobre o baseline
 GET    /cameras/:id/events?cursor=&limit=&type=
 GET    /events/:id
 POST   /mediamtx/auth                  hook do MediaMTX
+GET    /settings                       IA/modelo em uso e providers com chave
+PATCH  /settings                       { vision: { provider?, model?, effort? } }
+GET    /settings/models?provider=      modelos disponíveis na conta do provider
 GET    /stream?cameraId=               SSE: camera.status, camera.state, camera.calibration, event.created
 GET    /files/*                        snapshots salvos
 ```

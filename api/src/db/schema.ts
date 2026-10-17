@@ -120,6 +120,25 @@ export interface EventDetails {
   crop?: { x: number; y: number; w: number; h: number } | null;
 }
 
+/** Configurações globais editáveis pelo painel (uma linha, id = 'default'). */
+export const appSettings = pgTable('app_settings', {
+  id: text('id').primaryKey(),
+  vision: jsonb('vision').$type<VisionSettings>(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'mock';
+
+export interface VisionSettings {
+  provider: VisionProviderId;
+  /** Modelo escolhido para cada provider (lembrado ao alternar). */
+  models: Partial<Record<VisionProviderId, string>>;
+  effort: 'low' | 'medium' | 'high';
+}
+
 export type Store = typeof stores.$inferSelect;
 export type Camera = typeof cameras.$inferSelect;
 export type Snapshot = typeof snapshots.$inferSelect;
