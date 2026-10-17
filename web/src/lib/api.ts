@@ -98,6 +98,8 @@ export interface SceneValidation {
   issues: string[];
   validatedAt?: string;
   forced?: boolean;
+  provider?: string;
+  model?: string;
 }
 
 export interface InventoryItem {

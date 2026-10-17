@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2Icon,
   LoaderCircleIcon,
@@ -10,7 +10,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { isCalibrationRunning, useCalibrate, useCalibration } from '@/hooks/useCalibration';
-import { type Camera, type SceneValidation, queryKeys } from '@/lib/api';
+import { api, type Camera, type SceneValidation, queryKeys } from '@/lib/api';
+import { formatRelative } from '@/lib/labels';
 import type { CalibrationMsg } from '@/lib/sse';
 
 const STAGE_LABEL: Record<CalibrationMsg['stage'], string> = {
@@ -20,6 +21,19 @@ const STAGE_LABEL: Record<CalibrationMsg['stage'], string> = {
   done: 'Prateleira memorizada',
   failed: 'Falha na calibração',
 };
+
+const PROVIDER_LABEL: Record<string, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  google: 'Google Gemini',
+  mock: 'IA simulada',
+};
+
+/** IA que fez a calibração (calibrações antigas só trazem o aviso do modo simulado). */
+function calibratedBy(v: SceneValidation): string | undefined {
+  if (v.provider) return v.provider;
+  return v.issues.some((i) => i.includes('VISION_PROVIDER=mock')) ? 'mock' : undefined;
+}
 
 const ANGLE_LABEL: Record<SceneValidation['viewAngle'], string> = {
   top_down: 'vista de cima',
@@ -35,6 +49,7 @@ export function CalibrationPanel({ camera }: { camera: Camera }) {
   const calibrate = useCalibrate(camera.id);
   const running = isCalibrationRunning(calib);
   const validation = calib?.sceneValidation ?? camera.sceneValidation;
+  const health = useQuery({ queryKey: ['health'], queryFn: api.health, staleTime: 30_000 }).data;
 
   if (!calib && !camera.sceneValidation) return null;
 
@@ -78,50 +93,91 @@ export function CalibrationPanel({ camera }: { camera: Camera }) {
   if (!validation) return null;
   const ok = validation.isShelfScene;
   const count = calib?.inventory?.items.length ?? camera.inventory?.items.length;
+  const by = calibratedBy(validation);
+  const current = health?.vision.provider;
+  const outdated = !!by && !!current && by !== current;
 
   return (
-    <Alert className={ok ? 'border-success/40' : 'border-severity-attention/50'}>
-      {ok ? (
-        <CheckCircle2Icon className="text-success" />
-      ) : (
-        <TriangleAlertIcon className="text-severity-attention" />
+    <div className="grid gap-3">
+      {outdated && (
+        <Alert className="border-severity-attention/50">
+          <TriangleAlertIcon className="text-severity-attention" />
+          <AlertTitle>Prateleira memorizada com outra IA</AlertTitle>
+          <AlertDescription>
+            <p>
+              A validação e o inventário abaixo foram feitos com{' '}
+              <strong>{PROVIDER_LABEL[by] ?? by}</strong>. A IA atual é{' '}
+              <strong>
+                {PROVIDER_LABEL[current] ?? current} · {health?.vision.model}
+              </strong>
+              . Memorize de novo para refazer com ela.
+            </p>
+            <Button
+              size="sm"
+              className="mt-2"
+              onClick={() => calibrate.mutate(false)}
+              disabled={calibrate.isPending || camera.status !== 'online'}
+            >
+              <ScanEyeIcon /> Memorizar de novo
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
-      <AlertTitle>
-        {ok
-          ? validation.forced
-            ? 'Prateleira memorizada (validação ignorada)'
-            : 'Cena validada: prateleira com produtos'
-          : 'A imagem não parece uma prateleira com produtos'}
-      </AlertTitle>
-      <AlertDescription>
-        <p>
-          {ANGLE_LABEL[validation.viewAngle]} · ~{validation.productCountEstimate} produtos visíveis
-          {count != null && ok && (
-            <>
-              {' '}
-              · <PackageIcon className="inline size-3.5" /> {count} itens no inventário
-            </>
+      <Alert className={ok ? 'border-success/40' : 'border-severity-attention/50'}>
+        {ok ? (
+          <CheckCircle2Icon className="text-success" />
+        ) : (
+          <TriangleAlertIcon className="text-severity-attention" />
+        )}
+        <AlertTitle>
+          {ok
+            ? validation.forced
+              ? 'Prateleira memorizada (validação ignorada)'
+              : 'Cena validada: prateleira com produtos'
+            : 'A imagem não parece uma prateleira com produtos'}
+        </AlertTitle>
+        <AlertDescription>
+          <p>
+            {ANGLE_LABEL[validation.viewAngle]} · ~{validation.productCountEstimate} produtos
+            visíveis
+            {count != null && ok && (
+              <>
+                {' '}
+                · <PackageIcon className="inline size-3.5" /> {count} itens no inventário
+              </>
+            )}
+          </p>
+          {(validation.validatedAt || by) && (
+            <p className="text-xs opacity-80">
+              Validado {validation.validatedAt ? formatRelative(validation.validatedAt) : ''}
+              {by && <> por {PROVIDER_LABEL[by] ?? by}</>}
+              {validation.model && validation.model !== 'mock' && <> · {validation.model}</>}
+            </p>
           )}
-        </p>
-        {validation.issues.length > 0 && (
-          <ul className="mt-1 list-disc pl-4">
-            {validation.issues.map((i) => (
-              <li key={i}>{i}</li>
-            ))}
-          </ul>
-        )}
-        {notShelf && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => calibrate.mutate(true)} disabled={calibrate.isPending}>
-              Usar mesmo assim
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => calibrate.mutate(false)}>
-              Validar de novo
-            </Button>
-          </div>
-        )}
-      </AlertDescription>
-    </Alert>
+          {validation.issues.length > 0 && (
+            <ul className="mt-1 list-disc pl-4">
+              {validation.issues.map((i) => (
+                <li key={i}>{i}</li>
+              ))}
+            </ul>
+          )}
+          {notShelf && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() => calibrate.mutate(true)}
+                disabled={calibrate.isPending}
+              >
+                Usar mesmo assim
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => calibrate.mutate(false)}>
+                Validar de novo
+              </Button>
+            </div>
+          )}
+        </AlertDescription>
+      </Alert>
+    </div>
   );
 }
 

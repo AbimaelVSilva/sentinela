@@ -7,6 +7,7 @@ import { bus, type CalibrationStage } from '../../lib/bus';
 import { inventoryForImage, saveSnapshot } from '../../pipeline/analysis';
 import { limitJpeg } from '../../pipeline/image';
 import { getServices } from '../../services';
+import { currentModel, getVisionSettings } from '../settings/service';
 
 const running = new Set<string>();
 
@@ -37,6 +38,8 @@ export async function calibrate(cameraId: string, force: boolean, log: FastifyBa
     const sceneValidation: SceneValidationResult = {
       ...validation.data,
       validatedAt: new Date().toISOString(),
+      provider: getVisionSettings().provider,
+      model: currentModel(),
       forced: force && !validation.data.isShelfScene ? true : undefined,
     };
 

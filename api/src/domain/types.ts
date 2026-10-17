@@ -28,6 +28,9 @@ export interface SceneValidation {
 export interface SceneValidationResult extends SceneValidation {
   validatedAt: string;
   forced?: boolean;
+  /** IA que fez a validação/inventário (ex.: google / gemini-flash-latest). */
+  provider?: string;
+  model?: string;
 }
 
 export interface InventoryItem {
