@@ -3,6 +3,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import { env } from '../config/env';
 import { db } from '../db/client';
 import { cameras } from '../db/schema';
+import {
+  type AnalysisSettings,
+  defaultAnalysisSettings,
+  resolveAnalysisSettings,
+} from '../domain/analysis-settings';
 import { bus } from '../lib/bus';
 import type { VisionProvider } from '../vision/provider';
 import { recordOcclusionTimeout, runComparison } from './analysis';
@@ -14,15 +19,17 @@ import { CameraStateMachine, type MachineParams } from './state-machine';
 
 export { CameraStateMachine } from './state-machine';
 
-export function paramsFromEnv(): MachineParams {
+/** Converte as configurações de análise da câmera nos parâmetros da máquina de estados. */
+export function machineParams(s: AnalysisSettings = defaultAnalysisSettings()): MachineParams {
   return {
-    enterFrames: env.ENTER_CONSECUTIVE_FRAMES,
-    clearMs: env.CLEAR_SECONDS * 1000,
-    stableMs: env.STABLE_SECONDS * 1000,
-    stableDiffMax: env.STABLE_DIFF_MAX,
-    overlapMin: env.ROI_OVERLAP_MIN,
-    maxOcclusionMs: env.MAX_OCCLUSION_SECONDS * 1000,
-    stableMaxWaitMs: env.STABLE_MAX_WAIT_SECONDS * 1000,
+    personConfidence: s.personConfidence,
+    enterFrames: s.enterConsecutiveFrames,
+    clearMs: s.clearSeconds * 1000,
+    stableMs: s.stableSeconds * 1000,
+    stableDiffMax: s.stableDiffMax,
+    overlapMin: s.roiOverlapMin,
+    maxOcclusionMs: s.maxOcclusionSeconds * 1000,
+    stableMaxWaitMs: s.stableMaxWaitSeconds * 1000,
   };
 }
 
@@ -41,6 +48,7 @@ export class CameraWorker {
   private source: FrameSource | null = null;
   private machine: CameraStateMachine;
   private streamKey: string;
+  private fps = defaultAnalysisSettings().analysisFps;
   private busy = false;
   private pending: Frame | null = null;
   private detectorWarned = false;
@@ -53,7 +61,7 @@ export class CameraWorker {
   ) {
     this.streamKey = streamKey;
     this.log = deps.log.child({ cameraId });
-    this.machine = new CameraStateMachine(paramsFromEnv(), {
+    this.machine = new CameraStateMachine(machineParams(), {
       detector: deps.detector,
       diff: (a, b, roi) => sceneDiff(a, b, roi),
       now: () => Date.now(),
@@ -140,6 +148,16 @@ export class CameraWorker {
         this.startSource();
       }
     }
+    const settings = resolveAnalysisSettings(cam.analysisSettings);
+    this.machine.setParams(machineParams(settings));
+    if (settings.analysisFps !== this.fps) {
+      this.fps = settings.analysisFps;
+      if (this.source) {
+        this.source.stop();
+        this.source = null;
+        this.startSource();
+      }
+    }
     const detectorOk = this.deps.detector.available !== false;
     if (!detectorOk && cam.monitoringEnabled && !this.detectorWarned) {
       this.detectorWarned = true;
@@ -156,7 +174,7 @@ export class CameraWorker {
     if (this.source) return;
     const source = new FrameSource({
       url: this.rtspUrl,
-      fps: env.ANALYSIS_FPS,
+      fps: this.fps,
       bufferSeconds: 3,
       log: this.log,
     });

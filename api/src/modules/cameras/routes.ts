@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { db } from '../../db/client';
+import { AnalysisPatchSchema, mergeAnalysisOverrides } from '../../domain/analysis-settings';
 import { type Camera, cameras, snapshots, stores } from '../../db/schema';
 import { bus } from '../../lib/bus';
 import { isUniqueViolation } from '../../lib/pg-errors';
@@ -33,6 +34,8 @@ const PatchCameraBody = z.object({
   model: z.string().trim().max(60).nullish(),
   roi: RoiSchema.nullable().optional(),
   monitoringEnabled: z.boolean().optional(),
+  /** Ajustes da análise: valor novo ou null para voltar ao padrão. */
+  analysisSettings: AnalysisPatchSchema.optional(),
 });
 
 export async function loadCameraDto(id: string) {
@@ -92,8 +95,16 @@ export const cameraRoutes: FastifyPluginAsyncZod = async (app) => {
     '/cameras/:id',
     { schema: { params: IdParams, body: PatchCameraBody } },
     async (req) => {
-      const { name, model, roi, monitoringEnabled } = req.body;
+      const { name, model, roi, monitoringEnabled, analysisSettings } = req.body;
       const patch: Partial<typeof cameras.$inferInsert> = {};
+      if (analysisSettings !== undefined) {
+        const cur = await db.query.cameras.findFirst({
+          where: eq(cameras.id, req.params.id),
+          columns: { analysisSettings: true },
+        });
+        if (!cur) throw app.httpErrors.notFound('Câmera não encontrada');
+        patch.analysisSettings = mergeAnalysisOverrides(cur.analysisSettings, analysisSettings);
+      }
       if (name !== undefined) patch.name = name;
       if (model !== undefined) patch.model = model || null;
       if (roi !== undefined) patch.roi = roi;

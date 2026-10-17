@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { env } from '../config/env';
 import { db } from '../db/client';
+import { ANALYSIS_LIMITS } from '../domain/analysis-settings';
 import { cameras } from '../db/schema';
 import { bus } from '../lib/bus';
 import type { VisionProvider } from '../vision/provider';
@@ -21,9 +22,10 @@ export class WorkerManager {
     private readonly vision: VisionProvider,
     private readonly log: FastifyBaseLogger,
   ) {
+    // Piso baixo: cada câmera filtra pela própria confiança mínima (configurações da análise).
     this.detector = new YoloPersonDetector(
       env.YOLO_MODEL_PATH,
-      env.PERSON_CONFIDENCE,
+      ANALYSIS_LIMITS.personConfidence[0],
       log.child({ module: 'yolo' }),
     );
     if (!this.detector.available) {

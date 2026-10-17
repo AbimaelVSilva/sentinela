@@ -9,6 +9,7 @@ import {
 import { silentLog } from './helpers';
 
 const PARAMS: MachineParams = {
+  personConfidence: 0.45,
   enterFrames: 3,
   clearMs: 2500,
   stableMs: 1500,
@@ -104,6 +105,14 @@ describe('CameraStateMachine', () => {
     await t.frames(2, [PERSON_IN]);
     expect(t.machine.state).toBe('IDLE');
     await t.frames(1, [PERSON_IN]);
+    expect(t.machine.state).toBe('OCCUPIED');
+  });
+
+  it('ignora detecções abaixo da confiança mínima da câmera', async () => {
+    await t.frames(5, [{ ...PERSON_IN, confidence: 0.3 }]);
+    expect(t.machine.state).toBe('IDLE');
+    t.machine.setParams({ ...PARAMS, personConfidence: 0.25 });
+    await t.frames(3, [{ ...PERSON_IN, confidence: 0.3 }]);
     expect(t.machine.state).toBe('OCCUPIED');
   });
 

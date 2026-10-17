@@ -72,6 +72,18 @@ DISABLED → NO_BASELINE → IDLE → OCCUPIED → WAITING_CLEAR → WAITING_STA
 
 ---
 
+### Ajustes por câmera
+
+Na tela da câmera, a **engrenagem** abre as _Configurações da análise_ desta câmera: ligar/desligar o
+**pré-filtro** (desligado = toda passagem vai para a IA), o **limiar de mudança**, a confiança mínima
+da pessoa, a sobreposição com a área, frames seguidos, FPS e os tempos de saída/estabilidade/oclusão.
+Valem na hora, sem reiniciar; o que não for alterado segue o padrão do `.env` (seção _Variáveis de
+ambiente_). Um ponto laranja na engrenagem indica que a câmera tem ajustes próprios. Ficam salvos em
+`cameras.analysis_settings` e são alterados via `PATCH /cameras/:id` com `{ analysisSettings: { campo:
+valor | null } }` (`null` volta ao padrão).
+
+---
+
 ## Requisitos
 
 - Node.js 20+ (testado com 22) e npm 10+

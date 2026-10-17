@@ -15,6 +15,13 @@
       "when": 1792195324617,
       "tag": "0001_app_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792205461586,
+      "tag": "0002_camera_analysis_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,8 @@ import type { PersonDetector } from './person-detector';
 export type MachineState = Exclude<WorkerState, 'OFFLINE'>;
 
 export interface MachineParams {
+  /** Confiança mínima do detector para contar uma pessoa. */
+  personConfidence: number;
   enterFrames: number;
   clearMs: number;
   stableMs: number;
@@ -74,9 +76,14 @@ export class CameraStateMachine {
   private analysis: Promise<void> | null = null;
 
   constructor(
-    private readonly params: MachineParams,
+    private params: MachineParams,
     private readonly deps: MachineDeps,
   ) {}
+
+  /** Atualiza os parâmetros (configurações da câmera) sem perder o estado atual. */
+  setParams(params: MachineParams) {
+    this.params = params;
+  }
 
   get state(): MachineState {
     return this._state;
@@ -131,7 +138,9 @@ export class CameraStateMachine {
     const t = this.deps.now();
     const dets = await this.deps.detector.detect(jpeg);
     const occupied = dets.some(
-      (d) => bboxRoiOverlap(d.bbox, this.cfg.roi) >= this.params.overlapMin,
+      (d) =>
+        d.confidence >= this.params.personConfidence &&
+        bboxRoiOverlap(d.bbox, this.cfg.roi) >= this.params.overlapMin,
     );
     // O estado pode ter mudado enquanto o detector rodava (ex.: monitoramento desligado).
     if (this._state !== s) return;

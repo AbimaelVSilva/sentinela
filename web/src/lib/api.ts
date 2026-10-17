@@ -152,6 +152,21 @@ export interface RtmpInfo {
   fullUrl: string;
 }
 
+export interface AnalysisSettings {
+  prefilterEnabled: boolean;
+  sceneDiffMin: number;
+  personConfidence: number;
+  roiOverlapMin: number;
+  enterConsecutiveFrames: number;
+  clearSeconds: number;
+  stableSeconds: number;
+  stableDiffMax: number;
+  stableMaxWaitSeconds: number;
+  maxOcclusionSeconds: number;
+  analysisFps: number;
+}
+export type AnalysisPatch = { [K in keyof AnalysisSettings]?: AnalysisSettings[K] | null };
+
 export interface Camera {
   id: string;
   storeId: string;
@@ -172,6 +187,11 @@ export interface Camera {
   playback: { whep: string; hls: string };
   stream: StreamInfo | null;
   worker: { state: WorkerState; since: string | null; queued?: boolean };
+  analysis: {
+    effective: AnalysisSettings;
+    overrides: Partial<AnalysisSettings>;
+    defaults: AnalysisSettings;
+  };
 }
 
 export interface EventDetails {
@@ -234,6 +254,7 @@ export interface CameraPatch {
   model?: string | null;
   roi?: Point[] | null;
   monitoringEnabled?: boolean;
+  analysisSettings?: AnalysisPatch;
 }
 
 export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'mock';

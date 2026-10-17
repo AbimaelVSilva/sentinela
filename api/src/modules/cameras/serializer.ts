@@ -1,4 +1,5 @@
 import { env } from '../../config/env';
+import { defaultAnalysisSettings, resolveAnalysisSettings } from '../../domain/analysis-settings';
 import type { Camera, Snapshot } from '../../db/schema';
 import { serializeSnapshot } from '../events/serializer';
 import { runtime } from './runtime';
@@ -36,6 +37,13 @@ export function serializeCamera(c: Camera, baseline?: Snapshot | null) {
     rtmp: rtmpInfo(c.streamKey),
     playback: playbackUrls(c.streamKey),
     stream: runtime.getStream(c.id),
+    analysis: {
+      /** Valores em vigor (personalizados + padrões). */
+      effective: resolveAnalysisSettings(c.analysisSettings),
+      /** Só o que foi personalizado nesta câmera. */
+      overrides: c.analysisSettings ?? {},
+      defaults: defaultAnalysisSettings(),
+    },
     worker: worker ?? { state: c.status === 'online' ? 'DISABLED' : 'OFFLINE', since: null },
   };
 }

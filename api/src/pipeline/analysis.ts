@@ -13,6 +13,7 @@ import {
 } from '../db/schema';
 import { classifyComparison, severityOf } from '../domain/classification';
 import { regionFromCrop, regionToCrop, roiBoundingBox } from '../domain/geometry';
+import { resolveAnalysisSettings } from '../domain/analysis-settings';
 import { applyChanges } from '../domain/inventory';
 import type { Comparison, Inventory } from '../domain/types';
 import { bus } from '../lib/bus';
@@ -125,6 +126,7 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
   }
 
   const roi = camera.roi;
+  const tuning = resolveAnalysisSettings(camera.analysisSettings);
   let type: EventType;
   let summary: string;
   let details: EventDetails;
@@ -137,7 +139,7 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
     log.warn({ err }, 'Falha no pré-filtro; seguindo para a IA');
   }
 
-  if (score !== null && score < env.SCENE_DIFF_MIN) {
+  if (tuning.prefilterEnabled && score !== null && score < tuning.sceneDiffMin) {
     type = 'no_change';
     summary = 'Pessoa passou pela prateleira sem alterar os produtos.';
     details = { reason: 'below_diff_threshold', roi };

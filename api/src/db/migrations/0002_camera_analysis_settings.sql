@@ -1,0 +1,1 @@
+ALTER TABLE "cameras" ADD COLUMN "analysis_settings" jsonb;

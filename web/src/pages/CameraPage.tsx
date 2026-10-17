@@ -12,6 +12,7 @@ import {
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
+import { AnalysisSettingsButton } from '@/components/AnalysisSettingsDialog';
 import { CalibrationPanel } from '@/components/CalibrationPanel';
 import { CameraActions } from '@/components/CameraActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -203,6 +204,7 @@ function CameraHeader({
         <Button variant="outline" className="lg:hidden" onClick={onOpenEvents}>
           <ListIcon /> Eventos
         </Button>
+        <AnalysisSettingsButton camera={camera} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label="Ações da câmera">

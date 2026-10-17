@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { AnalysisOverrides } from '../domain/analysis-settings';
 import {
   type AnyPgColumn,
   boolean,
@@ -66,6 +67,8 @@ export const cameras = pgTable('cameras', {
     onDelete: 'set null',
   }),
   monitoringEnabled: boolean('monitoring_enabled').notNull().default(false),
+  /** Parâmetros de análise personalizados (null = padrões do .env). */
+  analysisSettings: jsonb('analysis_settings').$type<AnalysisOverrides>(),
   eventsSinceInventory: integer('events_since_inventory').notNull().default(0),
   ...timestamps,
 });
