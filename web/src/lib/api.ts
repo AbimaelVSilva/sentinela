@@ -228,7 +228,9 @@ export interface SentinelaEvent {
   before: Snapshot | null;
   after: Snapshot | null;
   /** Vídeo curto da passagem; fica pronto alguns segundos depois do evento. */
-  clip: { url: string; durationSeconds: number | null } | null;
+  clip: { url: string; durationSeconds: number | null; expiresAt: string | null } | null;
+  /** Quando o vídeo foi apagado pela retenção. */
+  clipDeletedAt: string | null;
 }
 
 export interface StoreCamera extends Camera {

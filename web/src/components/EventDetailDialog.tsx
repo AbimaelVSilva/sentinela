@@ -196,6 +196,11 @@ function ClipView({ event }: { event: SentinelaEvent }) {
               {Math.round(event.clip.durationSeconds)} s
             </span>
           )}
+          {event.clip.expiresAt && (
+            <span className="ml-auto font-normal normal-case">
+              disponível até {formatTime(event.clip.expiresAt)}
+            </span>
+          )}
         </figcaption>
         <video
           key={event.clip.url}
@@ -209,6 +214,15 @@ function ClipView({ event }: { event: SentinelaEvent }) {
           preload="auto"
         />
       </figure>
+    );
+  }
+  if (event.clipDeletedAt) {
+    return (
+      <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <FilmIcon className="size-3.5 shrink-0" />
+        Vídeo apagado automaticamente em {formatTime(event.clipDeletedAt)}: passagens sem alteração
+        guardam o vídeo por 24 h.
+      </p>
     );
   }
   const recent = openedAt - new Date(event.createdAt).getTime() < CLIP_PENDING_MS;

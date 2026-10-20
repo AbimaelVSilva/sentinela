@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { sqlClient } from './db/client';
 import { StatusPoller } from './modules/mediamtx/status-poller';
 import { loadVisionSettings } from './modules/settings/service';
+import { startClipRetentionJob } from './pipeline/clip-retention';
 import { WorkerManager } from './pipeline/worker-manager';
 import { setServices } from './services';
 import { getVisionProvider } from './vision';
@@ -16,10 +17,13 @@ const vision = getVisionProvider(app.log);
 const workers = new WorkerManager(vision, app.log.child({ module: 'pipeline' }));
 setServices({ workers, vision });
 
+let stopRetention: (() => void) | null = null;
+
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'Encerrando API');
   try {
     poller.stop();
+    stopRetention?.();
     workers.stop();
     await app.close();
     await sqlClient.end({ timeout: 5 });
@@ -39,6 +43,7 @@ try {
   await app.listen({ port: env.API_PORT, host: env.API_HOST });
   await workers.start();
   poller.start();
+  stopRetention = startClipRetentionJob(app.log.child({ module: 'retention' }));
 } catch (err) {
   app.log.fatal(err);
   process.exit(1);

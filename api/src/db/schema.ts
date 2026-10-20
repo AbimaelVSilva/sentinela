@@ -112,6 +112,8 @@ export const events = pgTable(
     /** Vídeo curto da passagem (mp4 no storage), recortado das gravações do MediaMTX. */
     clipPath: text('clip_path'),
     clipDuration: real('clip_duration'),
+    /** Quando o vídeo foi apagado pela retenção (ex.: "sem alteração" após 24 h). */
+    clipDeletedAt: timestamp('clip_deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('events_camera_created_idx').on(t.cameraId, sql`${t.createdAt} desc`)],

@@ -28,6 +28,10 @@ const EnvSchema = z.object({
   CLIP_PRE_SECONDS: num(3),
   CLIP_POST_SECONDS: num(2),
   CLIP_MAX_SECONDS: num(60),
+  /** Vídeos de passagens "sem alteração" são apagados depois de N horas. */
+  CLIP_RETENTION_NO_CHANGE_HOURS: num(24),
+  /** Intervalo do job de retenção dos vídeos (minutos). */
+  CLIP_CLEANUP_INTERVAL_MINUTES: num(60),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
   VISION_PROVIDER: z.enum(['anthropic', 'openai', 'google', 'mock']).default('anthropic'),

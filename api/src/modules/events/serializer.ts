@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import type { EventRow, EventSeverity, EventType, Snapshot } from '../../db/schema';
 import { EVENT_META } from '../../domain/classification';
 import { fileUrl } from '../../storage';
@@ -27,7 +28,9 @@ export interface EventDto {
   before: SnapshotDto | null;
   after: SnapshotDto | null;
   /** Vídeo curto da passagem (gerado alguns segundos depois do evento). */
-  clip: { url: string; durationSeconds: number | null } | null;
+  clip: { url: string; durationSeconds: number | null; expiresAt: string | null } | null;
+  /** Quando o vídeo foi apagado pela retenção (null se nunca foi). */
+  clipDeletedAt: string | null;
 }
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -68,6 +71,19 @@ export function serializeEvent(
     createdAt: e.createdAt.toISOString(),
     before: serializeSnapshot(before),
     after: serializeSnapshot(after),
-    clip: e.clipPath ? { url: fileUrl(e.clipPath), durationSeconds: e.clipDuration } : null,
+    clip: e.clipPath
+      ? {
+          url: fileUrl(e.clipPath),
+          durationSeconds: e.clipDuration,
+          // Só passagens "sem alteração" têm prazo (retenção); as demais ficam guardadas.
+          expiresAt:
+            e.type === 'no_change'
+              ? new Date(
+                  e.createdAt.getTime() + env.CLIP_RETENTION_NO_CHANGE_HOURS * 3600 * 1000,
+                ).toISOString()
+              : null,
+        }
+      : null,
+    clipDeletedAt: iso(e.clipDeletedAt),
   };
 }

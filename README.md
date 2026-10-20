@@ -110,7 +110,13 @@ servidor de playback do MediaMTX (`MEDIAMTX_PLAYBACK_URL`, porta 9996, só inter
 `CLIP_MAX_SECONDS`, mantendo o final), salva em `storage/<câmera>/clip-<evento>.mp4` e avisa a UI por
 SSE (`event.updated`). O vídeo aparece no detalhe do evento (e um ícone de filme no stepper) cerca de
 1–3 s depois do evento. Sem gravação disponível, o evento segue normalmente, só sem vídeo.
-Desligue com `CLIP_ENABLED=false`. Os clipes ficam no storage enquanto o evento existir.
+Desligue com `CLIP_ENABLED=false`.
+
+**Retenção:** os vídeos de passagens **sem alteração** ficam guardados por 24 h
+(`CLIP_RETENTION_NO_CHANGE_HOURS`); um job da própria API roda a cada 1 h
+(`CLIP_CLEANUP_INTERVAL_MINUTES`, primeira execução 1 min após subir) e apaga os vencidos — o evento
+continua no histórico, com o aviso de que o vídeo foi removido. Vídeos de retirado, movido e falha
+ficam guardados. Para rodar na hora: `npm run clips:cleanup -w api` (aceita `-- --hours N`).
 
 ---
 

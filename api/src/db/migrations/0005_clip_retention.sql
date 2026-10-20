@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "clip_deleted_at" timestamp with time zone;

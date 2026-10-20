@@ -16,7 +16,8 @@
     "db:studio": "drizzle-kit studio",
     "model:download": "tsx --env-file=../.env scripts/download-model.ts",
     "video:make": "tsx scripts/make-test-video.ts",
-    "db:seed": "tsx --env-file=../.env src/db/seed.ts"
+    "db:seed": "tsx --env-file=../.env src/db/seed.ts",
+    "clips:cleanup": "tsx --env-file=../.env scripts/cleanup-clips.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
