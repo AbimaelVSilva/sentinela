@@ -2,6 +2,7 @@ import { ShieldCheckIcon } from 'lucide-react';
 import { Link, Outlet } from 'react-router';
 import { useSSE } from '@/lib/sse';
 import { ApiStatus } from './ApiStatus';
+import { NotificationBell } from './NotificationBell';
 import { SettingsButton } from './SettingsDialog';
 import { UserMenu } from './UserMenu';
 import { ThemeToggle } from './ThemeToggle';
@@ -19,6 +20,7 @@ export function AppLayout() {
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <ApiStatus />
+            <NotificationBell />
             <SettingsButton />
             <ThemeToggle />
             <UserMenu />

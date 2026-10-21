@@ -298,6 +298,14 @@ export interface ModelList {
   error?: string;
 }
 
+export interface AlertItem {
+  cameraId: string;
+  cameraName: string;
+  storeId: string;
+  storeName: string;
+  event: SentinelaEvent;
+}
+
 export interface AuthUser {
   id: string;
   username: string;
@@ -362,6 +370,7 @@ export const api = {
     return apiFetch<EventsPage>(`/cameras/${cameraId}/events?${q}`);
   },
   getEvent: (id: string) => apiFetch<SentinelaEvent>(`/events/${id}`),
+  listAlerts: () => apiFetch<{ items: AlertItem[] }>('/alerts?limit=30'),
 
   getSettings: () => apiFetch<AppSettings>('/settings'),
   updateSettings: (vision: { provider?: VisionProviderId; model?: string; effort?: Effort }) =>
@@ -378,6 +387,7 @@ export const queryKeys = {
   event: (id: string) => ['events', id] as const,
   calibration: (cameraId: string) => ['cameras', cameraId, 'calibration'] as const,
   settings: ['settings'] as const,
+  alerts: ['alerts'] as const,
   me: ['auth', 'me'] as const,
   users: ['users'] as const,
   models: (provider: string) => ['settings', 'models', provider] as const,

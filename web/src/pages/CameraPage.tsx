@@ -9,13 +9,14 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { AnalysisSettingsButton } from '@/components/AnalysisSettingsDialog';
 import { CalibrationPanel } from '@/components/CalibrationPanel';
 import { CameraActions } from '@/components/CameraActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EventDetailDialog } from '@/components/EventDetailDialog';
 import { EventStepper } from '@/components/EventStepper';
 import { InventoryCard } from '@/components/InventoryCard';
 import { InventoryHighlight } from '@/components/InventoryHighlight';
@@ -144,6 +145,7 @@ export function CameraPage() {
       <aside className="hidden w-[380px] shrink-0 border-l lg:flex lg:flex-col">
         {eventsPanel}
       </aside>
+      <LinkedEventDialog />
       <Sheet open={eventsOpen} onOpenChange={setEventsOpen}>
         <SheetContent side="right" className="w-full p-0 sm:max-w-[380px]">
           <SheetHeader className="sr-only">
@@ -268,5 +270,28 @@ function CameraHeader({
         onConfirm={() => del.mutate()}
       />
     </div>
+  );
+}
+
+/** Abre o modal da ocorrência indicada em ?evento=<id> (atalho "Ver" do sino e dos toasts). */
+function LinkedEventDialog() {
+  const [params, setParams] = useSearchParams();
+  const eventId = params.get('evento');
+  const { data, isError } = useQuery({
+    queryKey: queryKeys.event(eventId ?? ''),
+    queryFn: () => api.getEvent(eventId!),
+    enabled: !!eventId,
+    retry: false,
+  });
+  const close = () => {
+    const next = new URLSearchParams(params);
+    next.delete('evento');
+    setParams(next, { replace: true });
+  };
+  useEffect(() => {
+    if (isError && eventId) toast.error('Ocorrência não encontrada');
+  }, [isError, eventId]);
+  return (
+    <EventDetailDialog event={eventId && data ? data : null} onOpenChange={(o) => !o && close()} />
   );
 }

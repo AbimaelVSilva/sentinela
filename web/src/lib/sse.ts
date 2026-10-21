@@ -1,5 +1,8 @@
 import { type InfiniteData, type QueryClient, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useNavigate } from 'react-router';
+import { playAlertSound } from './alert-sound';
+import { eventLink } from './alerts-read';
 import { getToken, onTokenChange } from './auth-token';
 import { toast } from 'sonner';
 import {
@@ -40,6 +43,10 @@ export interface CalibrationMsg {
 export interface EventCreatedMsg {
   cameraId: string;
   event: SentinelaEvent;
+  /** Só em event.created: onde aconteceu (para notificações). */
+  storeId?: string;
+  storeName?: string;
+  cameraName?: string;
 }
 
 function patchCamera(qc: QueryClient, cameraId: string, patch: (c: Camera) => Camera) {
@@ -89,7 +96,12 @@ function handleEventUpdated(qc: QueryClient, msg: EventCreatedMsg) {
   qc.setQueryData(queryKeys.event(event.id), event);
 }
 
-function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
+function handleEvent(
+  qc: QueryClient,
+  msg: EventCreatedMsg,
+  notify: boolean,
+  navigate: (to: string) => void,
+) {
   const { event } = msg;
   // A lista pode estar em cache com filtros diferentes: ['cameras', id, 'events', { types }].
   for (const q of qc.getQueryCache().findAll({ queryKey: queryKeys.events(msg.cameraId) })) {
@@ -109,15 +121,23 @@ function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
   void qc.invalidateQueries({ queryKey: queryKeys.stores });
   void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId), exact: true });
 
+  if (event.severity !== 'alert' && event.severity !== 'attention') return;
+  // Sino de notificações (lista de alertas recentes).
+  void qc.invalidateQueries({ queryKey: queryKeys.alerts });
   if (!notify) return;
-  if (event.severity === 'alert') {
-    toast.error(event.label, { description: event.summary, className: 'toast-severity-alert' });
-  } else if (event.severity === 'attention') {
-    toast.warning(event.label, {
-      description: event.summary,
-      className: 'toast-severity-attention',
-    });
-  }
+
+  playAlertSound(event.severity);
+  const place = [msg.storeName, msg.cameraName].filter(Boolean).join(' · ');
+  const options = {
+    description: [place, event.summary].filter(Boolean).join(' — '),
+    className: `toast-severity-${event.severity}`,
+    duration: 10_000,
+    action: msg.storeId
+      ? { label: 'Ver', onClick: () => navigate(eventLink(msg.storeId!, msg.cameraId, event.id)) }
+      : undefined,
+  };
+  if (event.severity === 'alert') toast.error(event.label, options);
+  else toast.warning(event.label, options);
 }
 
 /**
@@ -130,6 +150,12 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
   const notify = opts.notify ?? true;
   // Reconecta quando o token muda (login/logout); sem token não conecta.
   const token = useSyncExternalStore(onTokenChange, getToken);
+  // navigate num ref: muda a cada rota e não deve reconectar o SSE.
+  const navigate = useNavigate();
+  const navigateRef = useRef<(to: string) => void>(() => {});
+  useEffect(() => {
+    navigateRef.current = (to: string) => void navigate(to);
+  }, [navigate]);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -181,7 +207,7 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
       });
       es.addEventListener('event.created', (e) => {
         const msg = parse<EventCreatedMsg>(e);
-        if (msg) handleEvent(qc, msg, notify);
+        if (msg) handleEvent(qc, msg, notify, (to) => navigateRef.current(to));
       });
       es.addEventListener('event.updated', (e) => {
         const msg = parse<EventCreatedMsg>(e);

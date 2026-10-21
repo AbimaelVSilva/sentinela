@@ -48,13 +48,20 @@ export interface BusEvents {
     error?: string;
   };
   /** Novo evento classificado. Público via SSE. */
-  'event.created': { cameraId: string; event: EventDto };
+  'event.created': { cameraId: string; event: EventDto } & EventPlace;
   /** Evento existente atualizado (ex.: vídeo da passagem ficou pronto). Público via SSE. */
   'event.updated': { cameraId: string; event: EventDto };
   /** Interno: configuração da câmera mudou (ROI, monitoramento, baseline, key). */
   'camera.updated': { cameraId: string };
   /** Interno: câmera removida. */
   'camera.deleted': { cameraId: string; streamKey: string };
+}
+
+/** Onde o evento aconteceu (para notificações: "Loja X · Câmera Y"). */
+export interface EventPlace {
+  storeId: string;
+  storeName: string;
+  cameraName: string;
 }
 
 export type BusEventName = keyof BusEvents;

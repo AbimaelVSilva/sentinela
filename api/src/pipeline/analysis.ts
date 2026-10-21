@@ -10,13 +10,14 @@ import {
   events,
   type Snapshot,
   snapshots,
+  stores,
 } from '../db/schema';
 import { classifyComparison, severityOf } from '../domain/classification';
 import { regionFromCrop, regionToCrop, roiBoundingBox } from '../domain/geometry';
 import { resolveAnalysisSettings } from '../domain/analysis-settings';
 import { applyChanges } from '../domain/inventory';
 import type { Comparison, Inventory } from '../domain/types';
-import { bus } from '../lib/bus';
+import { bus, type EventPlace } from '../lib/bus';
 import { serializeEvent } from '../modules/events/serializer';
 import { readFile, saveFile } from '../storage';
 import { VisionError, type VisionProvider } from '../vision/provider';
@@ -26,6 +27,15 @@ import { sceneDiff } from './scene-diff';
 
 const ROI_MARGIN = 0.05;
 const MAX_SIDE = 1568;
+
+/** Loja e câmera do evento, para as notificações do front. */
+async function eventPlace(camera: Camera): Promise<EventPlace> {
+  const store = await db.query.stores.findFirst({
+    where: eq(stores.id, camera.storeId),
+    columns: { name: true },
+  });
+  return { storeId: camera.storeId, storeName: store?.name ?? '', cameraName: camera.name };
+}
 
 /** Salva um JPEG como snapshot da câmera. */
 export async function saveSnapshot(
@@ -217,7 +227,7 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
   });
 
   const dto = serializeEvent(row!, baseline.snapshot, afterSnap);
-  bus.emit('event.created', { cameraId, event: dto });
+  bus.emit('event.created', { cameraId, event: dto, ...(await eventPlace(camera)) });
   // Vídeo da passagem em segundo plano (não atrasa o próximo ciclo de análise).
   void captureEventClip({
     eventId: row!.id,
@@ -265,6 +275,10 @@ export async function recordOcclusionTimeout(
   const before = camera.baselineSnapshotId
     ? await db.query.snapshots.findFirst({ where: eq(snapshots.id, camera.baselineSnapshotId) })
     : null;
-  bus.emit('event.created', { cameraId, event: serializeEvent(row!, before) });
+  bus.emit('event.created', {
+    cameraId,
+    event: serializeEvent(row!, before),
+    ...(await eventPlace(camera)),
+  });
   log.info({ cameraId }, 'Oclusão prolongada registrada');
 }
