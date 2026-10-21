@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, or } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { db } from '../../db/client';
@@ -46,6 +46,9 @@ export const eventRoutes: FastifyPluginAsyncZod = async (app) => {
         params: z.object({ id: z.uuid() }),
         querystring: z.object({
           cursor: z.string().optional(),
+          /** Intervalo [from, to) — o front manda o início/fim do dia no fuso do usuário. */
+          from: z.iso.datetime({ offset: true }).optional(),
+          to: z.iso.datetime({ offset: true }).optional(),
           limit: z.coerce.number().int().min(1).max(100).default(20),
           type: z
             .union([z.enum(eventTypeEnum.enumValues), z.array(z.enum(eventTypeEnum.enumValues))])
@@ -55,7 +58,7 @@ export const eventRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (req) => {
       const { id } = req.params;
-      const { limit, cursor, type } = req.query;
+      const { limit, cursor, type, from, to } = req.query;
       const cam = await db.query.cameras.findFirst({
         where: eq(cameras.id, id),
         columns: { id: true },
@@ -73,6 +76,8 @@ export const eventRoutes: FastifyPluginAsyncZod = async (app) => {
           and(
             eq(events.cameraId, id),
             types ? inArray(events.type, types) : undefined,
+            from ? gte(events.createdAt, new Date(from)) : undefined,
+            to ? lt(events.createdAt, new Date(to)) : undefined,
             c
               ? or(
                   lt(events.createdAt, c.createdAt),

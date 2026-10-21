@@ -81,7 +81,7 @@ export function CameraPage() {
     );
   }
 
-  const eventsPanel = <EventStepper cameraId={camera.id} />;
+  const eventsPanel = <EventStepper cameraId={camera.id} since={camera.createdAt} />;
   const highlighted = camera.inventory?.items.find((i) => i.id === highlightId) ?? null;
 
   return (

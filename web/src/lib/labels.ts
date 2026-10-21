@@ -111,3 +111,8 @@ export function formatRelative(iso: string | null | undefined): string {
   if (diff < 86400) return `há ${Math.round(diff / 3600)} h`;
   return `há ${Math.round(diff / 86400)} d`;
 }
+
+/** Só a hora (ex.: 16:39:05) — para listas já agrupadas por dia. */
+export function formatClock(iso: string | null | undefined): string {
+  return iso ? timeFmt.format(new Date(iso)) : '—';
+}

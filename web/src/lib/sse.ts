@@ -93,8 +93,12 @@ function handleEvent(qc: QueryClient, msg: EventCreatedMsg, notify: boolean) {
   const { event } = msg;
   // A lista pode estar em cache com filtros diferentes: ['cameras', id, 'events', { types }].
   for (const q of qc.getQueryCache().findAll({ queryKey: queryKeys.events(msg.cameraId) })) {
-    const filter = q.queryKey[3] as { types?: string[] } | undefined;
+    const filter = q.queryKey[3] as { types?: string[]; from?: string; to?: string } | undefined;
     if (filter?.types?.length && !filter.types.includes(event.type)) continue;
+    // Só entra na lista do dia a que pertence (normalmente "hoje").
+    const at = new Date(event.createdAt).getTime();
+    if (filter?.from && at < new Date(filter.from).getTime()) continue;
+    if (filter?.to && at >= new Date(filter.to).getTime()) continue;
     qc.setQueryData<InfiniteData<EventsPage>>(q.queryKey, (old) => {
       if (!old || old.pages.length === 0) return old;
       if (old.pages.some((p) => p.items.some((e) => e.id === event.id))) return old;

@@ -350,9 +350,14 @@ export const api = {
   snapshotUrl: (id: string, bust?: number) =>
     withToken(`${API_URL}/cameras/${id}/snapshot${bust ? `?t=${bust}` : ''}`),
 
-  listEvents: (cameraId: string, opts: { cursor?: string | null; types?: EventType[] } = {}) => {
+  listEvents: (
+    cameraId: string,
+    opts: { cursor?: string | null; types?: EventType[]; from?: Date; to?: Date } = {},
+  ) => {
     const q = new URLSearchParams({ limit: '20' });
     if (opts.cursor) q.set('cursor', opts.cursor);
+    if (opts.from) q.set('from', opts.from.toISOString());
+    if (opts.to) q.set('to', opts.to.toISOString());
     opts.types?.forEach((t) => q.append('type', t));
     return apiFetch<EventsPage>(`/cameras/${cameraId}/events?${q}`);
   },
