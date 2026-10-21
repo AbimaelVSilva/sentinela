@@ -23,14 +23,13 @@ const full = new Intl.DateTimeFormat('pt-BR', {
   year: 'numeric',
 });
 
-/** Rótulo principal e secundário do dia: "Hoje · 20/10", "Ontem", "Anteontem", "quinta-feira · 16/10". */
+/** Rótulo do dia: só hoje tem nome ("Hoje · quarta-feira, 21/10"); os demais, "Terça-feira · 20/10". */
 export function dayLabel(today: Date, offset: number): { title: string; subtitle: string } {
   const { from } = dayRange(today, offset);
   const sameYear = from.getFullYear() === today.getFullYear();
   const date = sameYear ? dayMonth.format(from) : full.format(from);
-  const named = ['Hoje', 'Ontem', 'Anteontem'][offset];
-  if (named) return { title: named, subtitle: `${weekday.format(from)}, ${date}` };
   const wd = weekday.format(from);
+  if (offset === 0) return { title: 'Hoje', subtitle: `${wd}, ${date}` };
   return { title: wd.charAt(0).toUpperCase() + wd.slice(1), subtitle: date };
 }
 

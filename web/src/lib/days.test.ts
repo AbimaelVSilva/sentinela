@@ -12,11 +12,11 @@ describe('dias', () => {
     expect(dayRange(today, 20).from).toEqual(new Date(2026, 8, 30)); // atravessa o mês
   });
 
-  it('rótulos: Hoje, Ontem, Anteontem e depois o dia da semana', () => {
+  it('rótulos: só hoje tem nome; os demais mostram dia da semana e data', () => {
     expect(dayLabel(today, 0).title).toBe('Hoje');
-    expect(dayLabel(today, 0).subtitle).toContain('20/10');
-    expect(dayLabel(today, 1).title).toBe('Ontem');
-    expect(dayLabel(today, 2).title).toBe('Anteontem');
+    expect(dayLabel(today, 0).subtitle).toBe('terça-feira, 20/10');
+    expect(dayLabel(today, 1)).toEqual({ title: 'Segunda-feira', subtitle: '19/10' });
+    expect(dayLabel(today, 2)).toEqual({ title: 'Domingo', subtitle: '18/10' });
     expect(dayLabel(today, 4)).toEqual({ title: 'Sexta-feira', subtitle: '16/10' });
     expect(dayLabel(today, 300).subtitle).toMatch(/2025$/);
   });
