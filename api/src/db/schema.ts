@@ -176,7 +176,7 @@ export const appSettings = pgTable('app_settings', {
     .$onUpdate(() => new Date()),
 });
 
-export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'mock';
+export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'openrouter' | 'mock';
 
 export interface VisionSettings {
   provider: VisionProviderId;

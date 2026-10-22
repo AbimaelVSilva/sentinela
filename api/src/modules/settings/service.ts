@@ -13,6 +13,7 @@ export function envVisionSettings(): VisionSettings {
       anthropic: env.VISION_MODEL,
       openai: env.OPENAI_MODEL,
       google: env.GOOGLE_MODEL,
+      openrouter: env.OPENROUTER_MODEL,
       mock: 'mock',
     },
     effort: env.VISION_EFFORT,

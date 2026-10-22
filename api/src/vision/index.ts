@@ -6,6 +6,7 @@ import { googleApiKey } from './catalog';
 import { GoogleVisionProvider } from './google';
 import { MockVisionProvider } from './mock';
 import { OpenAIVisionProvider } from './openai';
+import { OpenRouterVisionProvider } from './openrouter';
 import type { VisionProvider } from './provider';
 
 /** Modelo efetivamente em uso (conforme as configurações do painel). */
@@ -34,6 +35,11 @@ function createProvider(log: FastifyBaseLogger): VisionProvider {
       );
     case 'google':
       return new GoogleVisionProvider({ apiKey: googleApiKey(), model, price }, log);
+    case 'openrouter':
+      return new OpenRouterVisionProvider(
+        { apiKey: env.OPENROUTER_API_KEY || undefined, model, effort: s.effort, price },
+        log,
+      );
     default:
       return new AnthropicVisionProvider(
         { apiKey: env.ANTHROPIC_API_KEY || undefined, model, effort: s.effort, price },

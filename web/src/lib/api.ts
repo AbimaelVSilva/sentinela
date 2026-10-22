@@ -278,7 +278,7 @@ export interface CameraPatch {
   analysisSettings?: AnalysisPatch;
 }
 
-export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'mock';
+export type VisionProviderId = 'anthropic' | 'openai' | 'google' | 'openrouter' | 'mock';
 export type Effort = 'low' | 'medium' | 'high';
 
 export interface ProviderInfo {

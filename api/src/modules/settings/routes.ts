@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { listModels, providerCatalog } from '../../vision/catalog';
 import { currentModel, getVisionSettings, updateVisionSettings } from './service';
 
-const ProviderId = z.enum(['anthropic', 'openai', 'google', 'mock']);
+const ProviderId = z.enum(['anthropic', 'openai', 'google', 'openrouter', 'mock']);
 
 function settingsDto() {
   const s = getVisionSettings();

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import { env } from '../config/env';
+import { OPENROUTER_BASE_URL } from './openrouter';
 import type { VisionProviderId } from '../db/schema';
 
 export interface ProviderInfo {
@@ -40,6 +41,18 @@ export function providerCatalog(): ProviderInfo[] {
       keyEnv: 'GOOGLE_API_KEY',
       defaultModel: env.GOOGLE_MODEL,
       suggestedModels: ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-flash-lite-latest'],
+    },
+    {
+      id: 'openrouter',
+      label: 'OpenRouter (vários modelos)',
+      configured: !!env.OPENROUTER_API_KEY,
+      keyEnv: 'OPENROUTER_API_KEY',
+      defaultModel: env.OPENROUTER_MODEL,
+      suggestedModels: [
+        'anthropic/claude-haiku-5.5',
+        'anthropic/claude-sonnet-5.5',
+        'anthropic/claude-opus-5.5',
+      ],
     },
     {
       id: 'mock',
@@ -110,6 +123,20 @@ export async function listModels(id: VisionProviderId): Promise<ModelList> {
         (a, b) =>
           Number(b.endsWith('-latest')) - Number(a.endsWith('-latest')) || b.localeCompare(a),
       );
+    } else if (id === 'openrouter') {
+      // Lista pública do OpenRouter; ficam só os modelos que aceitam imagem.
+      const res = await fetch(`${OPENROUTER_BASE_URL}/models`);
+      if (!res.ok) throw new Error(`OpenRouter respondeu ${res.status}`);
+      const body = (await res.json()) as {
+        data: { id: string; architecture?: { input_modalities?: string[] } }[];
+      };
+      const vision = body.data
+        .filter((m) => m.architecture?.input_modalities?.includes('image'))
+        .map((m) => m.id)
+        .filter((m) => !m.endsWith(':batch'));
+      // Sugeridos primeiro (Claude), depois os demais em ordem alfabética.
+      const top = info.suggestedModels.filter((m) => vision.includes(m));
+      models = [...top, ...vision.filter((m) => !top.includes(m)).sort()];
     }
     if (models.length === 0) return { models: info.suggestedModels, source: 'suggested' };
     cache.set(id, { at: Date.now(), models });

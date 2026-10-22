@@ -34,7 +34,9 @@ const EnvSchema = z.object({
   CLIP_CLEANUP_INTERVAL_MINUTES: num(60),
   STORAGE_DIR: z.string().default('./storage'),
   YOLO_MODEL_PATH: z.string().default('./models/yolo.onnx'),
-  VISION_PROVIDER: z.enum(['anthropic', 'openai', 'google', 'mock']).default('anthropic'),
+  VISION_PROVIDER: z
+    .enum(['anthropic', 'openai', 'google', 'openrouter', 'mock'])
+    .default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   VISION_MODEL: z.string().default('claude-sonnet-5-5'),
   OPENAI_API_KEY: z.string().optional().default(''),
@@ -47,6 +49,8 @@ const EnvSchema = z.object({
   GOOGLE_API_KEY: z.string().optional().default(''),
   GEMINI_API_KEY: z.string().optional().default(''),
   GOOGLE_MODEL: z.string().default('gemini-flash-latest'),
+  OPENROUTER_API_KEY: z.string().optional().default(''),
+  OPENROUTER_MODEL: z.string().default('anthropic/claude-haiku-5.5'),
   VISION_PRICE_INPUT_PER_MTOK: optionalNum(),
   VISION_PRICE_OUTPUT_PER_MTOK: optionalNum(),
   VISION_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),
