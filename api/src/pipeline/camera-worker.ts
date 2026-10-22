@@ -39,10 +39,16 @@ export interface WorkerDeps {
   log: FastifyBaseLogger;
 }
 
+/** Por quanto tempo a foto avulsa (câmera sem monitoramento) é reaproveitada. */
+const SNAPSHOT_CACHE_MS = 10_000;
+
 /**
  * Worker de uma câmera online: lê frames (FrameSource) e alimenta a máquina de
  * estados. Frames que chegam enquanto o anterior é processado são descartados
  * (fica só o mais recente), mantendo a análise em tempo real.
+ *
+ * Só decodifica o vídeo enquanto o monitoramento está ligado: câmeras apenas
+ * cadastradas não gastam CPU (a miniatura usa uma foto avulsa, em cache).
  */
 export class CameraWorker {
   private source: FrameSource | null = null;
@@ -52,6 +58,7 @@ export class CameraWorker {
   private busy = false;
   private pending: Frame | null = null;
   private detectorWarned = false;
+  private snapshot: { at: number; jpeg: Promise<Buffer | null> } | null = null;
   private readonly log: FastifyBaseLogger;
 
   constructor(
@@ -109,7 +116,6 @@ export class CameraWorker {
   async start() {
     await this.reload();
     this.machine.announce();
-    this.startSource();
   }
 
   stop() {
@@ -126,9 +132,18 @@ export class CameraWorker {
 
   /** Frame atual (aguarda o próximo se ainda não houver nenhum). */
   async currentFrame(timeoutMs = 5000): Promise<Buffer | null> {
-    if (!this.source) return null;
+    if (!this.source) return this.cachedSnapshot();
     const f = await this.source.nextFrame(timeoutMs, 2000);
     return f?.jpeg ?? null;
+  }
+
+  /** Sem monitoramento não há frames: tira uma foto avulsa e reaproveita por alguns segundos. */
+  private cachedSnapshot(): Promise<Buffer | null> {
+    const now = Date.now();
+    if (!this.snapshot || now - this.snapshot.at > SNAPSHOT_CACHE_MS) {
+      this.snapshot = { at: now, jpeg: grabFullFrame(this.rtspUrl) };
+    }
+    return this.snapshot.jpeg;
   }
 
   /** Frame em resolução total (para calibração); cai para o último frame reduzido. */
@@ -142,10 +157,10 @@ export class CameraWorker {
     if (!cam) return;
     if (cam.streamKey !== this.streamKey) {
       this.streamKey = cam.streamKey;
+      this.snapshot = null;
       if (this.source) {
         this.source.stop();
         this.source = null;
-        this.startSource();
       }
     }
     const settings = resolveAnalysisSettings(cam.analysisSettings);
@@ -155,7 +170,6 @@ export class CameraWorker {
       if (this.source) {
         this.source.stop();
         this.source = null;
-        this.startSource();
       }
     }
     const detectorOk = this.deps.detector.available !== false;
@@ -168,6 +182,12 @@ export class CameraWorker {
       hasBaseline: !!cam.baselineSnapshotId,
       roi: cam.roi,
     });
+    // Decodifica o vídeo só enquanto há monitoramento.
+    if (cam.monitoringEnabled && detectorOk) this.startSource();
+    else if (this.source) {
+      this.source.stop();
+      this.source = null;
+    }
   }
 
   private startSource() {
