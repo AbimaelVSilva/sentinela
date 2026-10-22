@@ -45,24 +45,39 @@ const WAIT_HINT_MS = 60_000;
 
 export function AddCameraWizard({
   storeId,
+  defaultName = 'Câmera da prateleira',
   open,
   onOpenChange,
 }: {
   storeId: string;
+  /** Nome sugerido (ex.: "Câmera 2" quando a loja já tem câmeras). */
+  defaultName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-xl">
-        <WizardBody storeId={storeId} onClose={() => onOpenChange(false)} />
+        <WizardBody
+          storeId={storeId}
+          defaultName={defaultName}
+          onClose={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
 }
 
 /** Monta a cada abertura do Dialog: o wizard sempre recomeça do passo 1. */
-function WizardBody({ storeId, onClose }: { storeId: string; onClose: () => void }) {
+function WizardBody({
+  storeId,
+  defaultName,
+  onClose,
+}: {
+  storeId: string;
+  defaultName: string;
+  onClose: () => void;
+}) {
   const [step, setStep] = useState<Step>(1);
   const [created, setCreated] = useState<{ camera: Camera; rtmp: RtmpInfo } | null>(null);
 
@@ -98,6 +113,7 @@ function WizardBody({ storeId, onClose }: { storeId: string; onClose: () => void
       {step === 1 && (
         <IdentifyStep
           storeId={storeId}
+          defaultName={defaultName}
           onCreated={(res) => {
             setCreated(res);
             setStep(2);
@@ -114,14 +130,16 @@ function WizardBody({ storeId, onClose }: { storeId: string; onClose: () => void
 
 function IdentifyStep({
   storeId,
+  defaultName,
   onCreated,
 }: {
   storeId: string;
+  defaultName: string;
   onCreated: (res: { camera: Camera; rtmp: RtmpInfo }) => void;
 }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<'qr' | 'manual'>('qr');
-  const [name, setName] = useState('Câmera da prateleira');
+  const [name, setName] = useState(defaultName);
   const [model, setModel] = useState<string>('');
   const [customModel, setCustomModel] = useState('');
   const [serial, setSerial] = useState('');

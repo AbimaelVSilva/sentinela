@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { api, queryKeys, type Store } from '@/lib/api';
+import { api, type CameraStatus, queryKeys, type Store } from '@/lib/api';
 import { formatRelative } from '@/lib/labels';
 
 export function StoresPage() {
@@ -27,7 +27,7 @@ export function StoresPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Lojas</h1>
           <p className="text-sm text-muted-foreground">
-            Lojas monitoradas e o status da câmera de cada uma.
+            Lojas monitoradas e o status das câmeras de cada uma.
           </p>
         </div>
         <Button onClick={() => setCreating(true)}>
@@ -71,8 +71,24 @@ export function StoresPage() {
   );
 }
 
+/** Status que resume a loja: basta uma câmera offline para chamar atenção. */
+const STATUS_PRIORITY: CameraStatus[] = ['offline', 'pending', 'online'];
+
 function StoreCard({ store }: { store: Store }) {
-  const camera = store.cameras[0];
+  const cams = store.cameras;
+  const camera = cams[0];
+  const online = cams.filter((c) => c.status === 'online').length;
+  const status = STATUS_PRIORITY.find((st) => cams.some((c) => c.status === st));
+  const lastEvent = cams
+    .map((c) => c.lastEvent)
+    .filter((e) => !!e)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const cameraText =
+    cams.length === 0
+      ? 'Nenhuma câmera'
+      : cams.length === 1
+        ? camera!.name
+        : `${cams.length} câmeras · ${online} online`;
   return (
     <Link to={`/lojas/${store.id}`} className="group">
       <Card className="h-full transition-colors group-hover:border-foreground/20 group-hover:bg-accent/30">
@@ -93,15 +109,15 @@ function StoreCard({ store }: { store: Store }) {
         <CardContent className="flex items-center justify-between gap-2 text-sm">
           <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
             <CameraIcon className="size-4 shrink-0" />
-            <span className="truncate">{camera ? camera.name : 'Nenhuma câmera'}</span>
+            <span className="truncate">{cameraText}</span>
           </span>
-          <CameraStatusBadge status={camera?.status} />
+          <CameraStatusBadge status={status} />
         </CardContent>
         <CardContent className="pt-0 text-xs text-muted-foreground">
           {store.alerts24h > 0
             ? `${store.alerts24h} alerta(s) nas últimas 24 h`
             : 'Nenhum alerta nas últimas 24 h'}
-          {camera?.lastEvent && <> · último evento {formatRelative(camera.lastEvent.createdAt)}</>}
+          {lastEvent && <> · último evento {formatRelative(lastEvent.createdAt)}</>}
         </CardContent>
       </Card>
     </Link>

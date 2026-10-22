@@ -43,6 +43,13 @@
       "when": 1792528647180,
       "tag": "0005_clip_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792706724786,
+      "tag": "0006_multi_camera",
+      "breakpoints": true
     }
   ]
 }

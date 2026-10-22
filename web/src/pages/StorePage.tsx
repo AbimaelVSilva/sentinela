@@ -27,7 +27,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { api, queryKeys, type StoreCamera } from '@/lib/api';
 import { formatRelative } from '@/lib/labels';
 import { AddCameraWizard } from './AddCameraWizard';
@@ -80,11 +79,6 @@ export function StorePage() {
   }
 
   const hasCamera = store.cameras.length > 0;
-  const addButton = (
-    <Button onClick={() => setAdding(true)} disabled={hasCamera}>
-      <PlusIcon /> Adicionar câmera
-    </Button>
-  );
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -103,15 +97,10 @@ export function StorePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {hasCamera ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>{addButton}</span>
-              </TooltipTrigger>
-              <TooltipContent>Protótipo: 1 câmera por loja</TooltipContent>
-            </Tooltip>
-          ) : (
-            addButton
+          {hasCamera && (
+            <Button onClick={() => setAdding(true)}>
+              <PlusIcon /> Adicionar câmera
+            </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -151,12 +140,17 @@ export function StorePage() {
       )}
 
       <StoreFormDialog open={editing} onOpenChange={setEditing} store={store} />
-      <AddCameraWizard storeId={store.id} open={adding} onOpenChange={setAdding} />
+      <AddCameraWizard
+        storeId={store.id}
+        defaultName={suggestCameraName(store.cameras.map((c) => c.name))}
+        open={adding}
+        onOpenChange={setAdding}
+      />
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}
         title={`Excluir "${store.name}"?`}
-        description="A câmera, os eventos e as imagens desta loja serão apagados. Esta ação não pode ser desfeita."
+        description="As câmeras, os eventos e as imagens desta loja serão apagados. Esta ação não pode ser desfeita."
         confirmLabel="Excluir loja"
         destructive
         pending={del.isPending}
@@ -164,6 +158,15 @@ export function StorePage() {
       />
     </div>
   );
+}
+
+/** Primeira câmera: "Câmera da prateleira"; depois "Câmera 2", "Câmera 3"… sem repetir nome. */
+function suggestCameraName(existing: string[]): string {
+  if (existing.length === 0) return 'Câmera da prateleira';
+  const taken = new Set(existing.map((n) => n.trim().toLowerCase()));
+  let n = existing.length + 1;
+  while (taken.has(`câmera ${n}`)) n++;
+  return `Câmera ${n}`;
 }
 
 function CameraCard({ camera }: { camera: StoreCamera }) {

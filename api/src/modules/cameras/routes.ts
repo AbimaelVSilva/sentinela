@@ -5,7 +5,6 @@ import { db } from '../../db/client';
 import { AnalysisPatchSchema, mergeAnalysisOverrides } from '../../domain/analysis-settings';
 import { type Camera, cameras, snapshots, stores } from '../../db/schema';
 import { bus } from '../../lib/bus';
-import { isUniqueViolation } from '../../lib/pg-errors';
 import { generateStreamKey } from '../../lib/stream-key';
 import { removeCameraDir } from '../../storage';
 import { kickPublisher } from '../mediamtx/client';
@@ -62,26 +61,19 @@ export const cameraRoutes: FastifyPluginAsyncZod = async (app) => {
       });
       if (!store) throw app.httpErrors.notFound('Loja não encontrada');
 
-      try {
-        const [cam] = await db
-          .insert(cameras)
-          .values({
-            storeId: store.id,
-            name: req.body.name,
-            model: req.body.model || null,
-            serial: req.body.serial || null,
-            qrRaw: req.body.qrRaw || null,
-            streamKey: generateStreamKey(),
-          })
-          .returning();
-        const dto = await dtoFor(cam!);
-        return reply.code(201).send({ camera: dto, rtmp: rtmpInfo(cam!.streamKey) });
-      } catch (err) {
-        if (isUniqueViolation(err, 'cameras_store_id_unique')) {
-          throw app.httpErrors.conflict('Protótipo: 1 câmera por loja');
-        }
-        throw err;
-      }
+      const [cam] = await db
+        .insert(cameras)
+        .values({
+          storeId: store.id,
+          name: req.body.name,
+          model: req.body.model || null,
+          serial: req.body.serial || null,
+          qrRaw: req.body.qrRaw || null,
+          streamKey: generateStreamKey(),
+        })
+        .returning();
+      const dto = await dtoFor(cam!);
+      return reply.code(201).send({ camera: dto, rtmp: rtmpInfo(cam!.streamKey) });
     },
   );
 

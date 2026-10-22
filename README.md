@@ -12,8 +12,8 @@ classificados em tempo real:
 | **Movimentação humana sem alteração** | neutro       | ninguém mexeu nos produtos                           |
 | **Falha na análise**                  | cinza escuro | a IA falhou ou devolveu resposta inválida duas vezes |
 
-> Especificação original: [docs/PROMPT.md](docs/PROMPT.md). Protótipo: **sem autenticação, sem
-> multitenancy, 1 câmera por loja** (constraint `cameras_store_id_unique`).
+> Especificação original: [docs/PROMPT.md](docs/PROMPT.md). Protótipo: **login simples, sem
+> multitenancy**; cada loja pode ter **várias câmeras** (uma por prateleira ou ângulo).
 
 ---
 

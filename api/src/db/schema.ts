@@ -52,33 +52,35 @@ export const stores = pgTable('stores', {
   ...timestamps,
 });
 
-export const cameras = pgTable('cameras', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  // Protótipo: 1 câmera por loja. Para liberar N câmeras, basta remover `.unique()`
-  // e gerar uma nova migration — nada mais depende dessa restrição.
-  storeId: uuid('store_id')
-    .notNull()
-    .unique('cameras_store_id_unique')
-    .references(() => stores.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  model: text('model'),
-  serial: text('serial'),
-  qrRaw: text('qr_raw'),
-  streamKey: text('stream_key').notNull().unique(),
-  status: cameraStatusEnum('status').notNull().default('pending'),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
-  roi: jsonb('roi').$type<RoiPolygon>(),
-  sceneValidation: jsonb('scene_validation').$type<SceneValidationResult>(),
-  inventory: jsonb('inventory').$type<Inventory>(),
-  baselineSnapshotId: uuid('baseline_snapshot_id').references((): AnyPgColumn => snapshots.id, {
-    onDelete: 'set null',
-  }),
-  monitoringEnabled: boolean('monitoring_enabled').notNull().default(false),
-  /** Parâmetros de análise personalizados (null = padrões do .env). */
-  analysisSettings: jsonb('analysis_settings').$type<AnalysisOverrides>(),
-  eventsSinceInventory: integer('events_since_inventory').notNull().default(0),
-  ...timestamps,
-});
+export const cameras = pgTable(
+  'cameras',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // Uma loja pode ter várias câmeras (uma por prateleira/ângulo).
+    storeId: uuid('store_id')
+      .notNull()
+      .references(() => stores.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    model: text('model'),
+    serial: text('serial'),
+    qrRaw: text('qr_raw'),
+    streamKey: text('stream_key').notNull().unique(),
+    status: cameraStatusEnum('status').notNull().default('pending'),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    roi: jsonb('roi').$type<RoiPolygon>(),
+    sceneValidation: jsonb('scene_validation').$type<SceneValidationResult>(),
+    inventory: jsonb('inventory').$type<Inventory>(),
+    baselineSnapshotId: uuid('baseline_snapshot_id').references((): AnyPgColumn => snapshots.id, {
+      onDelete: 'set null',
+    }),
+    monitoringEnabled: boolean('monitoring_enabled').notNull().default(false),
+    /** Parâmetros de análise personalizados (null = padrões do .env). */
+    analysisSettings: jsonb('analysis_settings').$type<AnalysisOverrides>(),
+    eventsSinceInventory: integer('events_since_inventory').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('cameras_store_idx').on(t.storeId)],
+);
 
 export const snapshots = pgTable(
   'snapshots',
