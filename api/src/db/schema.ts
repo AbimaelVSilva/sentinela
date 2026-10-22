@@ -13,7 +13,14 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { Comparison, Inventory, RoiPolygon, SceneValidationResult } from '../domain/types';
+import type {
+  AnalysisMode,
+  Comparison,
+  Inventory,
+  RemovalCheck,
+  RoiPolygon,
+  SceneValidationResult,
+} from '../domain/types';
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -121,7 +128,11 @@ export const events = pgTable(
 
 export interface EventDetails {
   reason?: 'occlusion_timeout' | 'below_diff_threshold' | 'vision' | 'vision_error';
+  /** Modo da análise que gerou o evento (ausente nos eventos antigos = full). */
+  mode?: AnalysisMode;
   comparison?: Comparison;
+  /** Resposta do modo "só retirada". */
+  removal?: RemovalCheck;
   error?: string;
   usage?: { inputTokens: number; outputTokens: number; estimatedCostUsd?: number };
   roi?: RoiPolygon | null;

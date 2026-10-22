@@ -17,6 +17,8 @@ export const ANALYSIS_LIMITS = {
   stableMaxWaitSeconds: [1, 120],
   maxOcclusionSeconds: [30, 7200],
   analysisFps: [1, 10],
+  analysisMode: null,
+  imageMaxSide: [512, 1920],
 } as const;
 
 const range = (min: number, max: number) =>
@@ -35,6 +37,10 @@ export const AnalysisSettingsSchema = z.object({
   stableMaxWaitSeconds: range(...ANALYSIS_LIMITS.stableMaxWaitSeconds),
   maxOcclusionSeconds: range(...ANALYSIS_LIMITS.maxOcclusionSeconds),
   analysisFps: range(...ANALYSIS_LIMITS.analysisFps),
+  /** full = identifica o produto; removal = só responde se algo saiu e quantos. */
+  analysisMode: z.enum(['full', 'removal']),
+  /** Maior lado (px) das fotos antes/depois enviadas à IA: menor = mais barato. */
+  imageMaxSide: range(...ANALYSIS_LIMITS.imageMaxSide).int(),
 });
 
 export type AnalysisSettings = z.infer<typeof AnalysisSettingsSchema>;
@@ -67,6 +73,8 @@ export function defaultAnalysisSettings(): AnalysisSettings {
     stableMaxWaitSeconds: env.STABLE_MAX_WAIT_SECONDS,
     maxOcclusionSeconds: env.MAX_OCCLUSION_SECONDS,
     analysisFps: env.ANALYSIS_FPS,
+    analysisMode: env.ANALYSIS_MODE,
+    imageMaxSide: env.VISION_IMAGE_MAX_SIDE,
   };
 }
 

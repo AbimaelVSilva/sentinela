@@ -7,6 +7,7 @@ import {
   ApiInventory,
   ApiSceneValidation,
   ComparisonSchema,
+  RemovalCheckSchema,
 } from '../src/vision/prompts';
 import { VisionError } from '../src/vision/provider';
 import { silentLog } from './helpers';
@@ -48,6 +49,19 @@ const VALID_COMPARE = JSON.stringify({
 });
 
 describe('schemas de saída', () => {
+  it('só retirada: quantidade vira 0 sem retirada e no mínimo 1 com retirada', () => {
+    expect(RemovalCheckSchema.parse({ removed: false, quantity: 3, confidence: 1.4 })).toEqual({
+      removed: false,
+      quantity: 0,
+      confidence: 1,
+    });
+    expect(RemovalCheckSchema.parse({ removed: true, quantity: 0, confidence: 0.6 })).toEqual({
+      removed: true,
+      quantity: 1,
+      confidence: 0.6,
+    });
+  });
+
   it('geram JSON Schema para structured outputs', () => {
     for (const s of [ApiSceneValidation, ApiInventory, ApiComparison]) {
       const schema = zodOutputFormat(s).schema as Record<string, unknown>;
@@ -97,6 +111,24 @@ describe('AnthropicVisionProvider', () => {
     // Sonnet 5.5 rejeita temperature não-padrão; o provider não envia.
     expect(body).not.toHaveProperty('temperature');
     expect(body).toMatchObject({ fallbacks: 'default', output_config: { effort: 'medium' } });
+  });
+
+  it('modo só retirada no Haiku 5.5: effort low, sem temperature e sem fallback', async () => {
+    const answer = JSON.stringify({ removed: true, quantity: 2, confidence: 0.8 });
+    const { p, create } = provider([message(answer)], 'claude-haiku-5-5');
+    const res = await p.checkRemoval(img, img);
+    expect(res.data).toEqual({ removed: true, quantity: 2, confidence: 0.8 });
+    expect(res.usage.estimatedCostUsd).toBeCloseTo((1000 * 0.1 + 100 * 0.5) / 1e6);
+
+    const body = create.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body.output_config).toMatchObject({ effort: 'low' });
+    expect(body).not.toHaveProperty('temperature');
+    // O Haiku 5.5 não tem fallback no servidor.
+    expect(body).not.toHaveProperty('fallbacks');
+    expect(body).not.toHaveProperty('betas');
+    const content = (body.messages as { content: { type: string; text?: string }[] }[])[0]!.content;
+    expect(content.filter((b) => b.type === 'image')).toHaveLength(2);
+    expect(content.at(-1)!.text).toContain('está faltando');
   });
 
   it('envia temperature 0 em modelos que aceitam', async () => {

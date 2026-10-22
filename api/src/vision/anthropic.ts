@@ -2,10 +2,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { FastifyBaseLogger } from 'fastify';
 import type { z } from 'zod';
-import type { Comparison, Inventory, SceneValidation } from '../domain/types';
+import type { Comparison, Inventory, RemovalCheck, SceneValidation } from '../domain/types';
 import {
   ApiComparison,
   ApiInventory,
+  ApiRemovalCheck,
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
@@ -13,6 +14,8 @@ import {
   InventorySchema,
   inventoryContext,
   parseVisionJson,
+  REMOVAL_CHECK_PROMPT,
+  RemovalCheckSchema,
   retryPrompt,
   SceneValidationSchema,
   SYSTEM_PROMPT,
@@ -33,6 +36,7 @@ const PRICING: [RegExp, number, number][] = [
   [/opus-(5|4)/, 5, 25],
   [/sonnet-5/, 2, 10],
   [/sonnet-4/, 3, 15],
+  [/haiku-5/, 0.1, 0.5],
   [/haiku-4/, 1, 5],
 ];
 
@@ -45,7 +49,13 @@ const supportsTemperature = (model: string) =>
   /haiku-4|sonnet-4-[56]|opus-4-[56]|claude-3/.test(model);
 
 const supportsEffort = (model: string) =>
-  /opus-(4-[5-8]|5)|sonnet-(4-6|5)|fable|mythos/.test(model);
+  /opus-(4-[5-8]|5)|sonnet-(4-6|5)|haiku-5|fable|mythos/.test(model);
+
+/**
+ * Fallback no servidor quando o modelo recusa por política. Só existe nestes modelos
+ * (o Haiku 5.5, por exemplo, não tem), então nos demais o parâmetro não é enviado.
+ */
+const supportsFallback = (model: string) => /fable-5-1|mythos-5-1|opus-5|sonnet-5-5/.test(model);
 
 type Effort = 'low' | 'medium' | 'high';
 
@@ -100,6 +110,19 @@ export class AnthropicVisionProvider implements VisionProvider {
     );
   }
 
+  checkRemoval(before: Buffer, after: Buffer): Promise<VisionResult<RemovalCheck>> {
+    // Pergunta simples: pouco raciocínio basta e reduz os tokens de saída.
+    return this.call(
+      'REMOVAL_CHECK',
+      [before, after],
+      REMOVAL_CHECK_PROMPT,
+      ApiRemovalCheck,
+      RemovalCheckSchema,
+      ['ANTES', 'DEPOIS'],
+      'low',
+    );
+  }
+
   /**
    * Chamada com saída estruturada (JSON Schema) + validação Zod. Se a validação
    * falhar, faz um retry enviando o erro ao modelo; se falhar de novo, lança VisionError.
@@ -111,8 +134,11 @@ export class AnthropicVisionProvider implements VisionProvider {
     apiSchema: A,
     finalSchema: S,
     captions?: string[],
+    effortOverride?: Effort,
   ): Promise<VisionResult<z.output<S>>> {
-    const { model, effort } = this.opts;
+    const { model } = this.opts;
+    const effort = effortOverride ?? this.opts.effort;
+    const fallback = supportsFallback(model);
     const content: Anthropic.Beta.BetaContentBlockParam[] = [];
     images.forEach((img, i) => {
       if (captions?.[i]) content.push({ type: 'text', text: `Imagem ${i + 1} — ${captions[i]}:` });
@@ -142,8 +168,9 @@ export class AnthropicVisionProvider implements VisionProvider {
           },
           ...(supportsTemperature(model) ? { temperature: 0 } : {}),
           // Se o modelo recusar por política, o servidor tenta o fallback padrão.
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
+          ...(fallback
+            ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
+            : {}),
         });
       } catch (err) {
         throw new VisionError(describeApiError(err), usage.inputTokens ? usage : null, {

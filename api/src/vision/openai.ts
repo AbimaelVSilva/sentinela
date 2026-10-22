@@ -2,10 +2,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
-import type { Comparison, Inventory, SceneValidation } from '../domain/types';
+import type { Comparison, Inventory, RemovalCheck, SceneValidation } from '../domain/types';
 import {
   ApiComparison,
   ApiInventory,
+  ApiRemovalCheck,
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
@@ -13,6 +14,8 @@ import {
   InventorySchema,
   inventoryContext,
   parseVisionJson,
+  REMOVAL_CHECK_PROMPT,
+  RemovalCheckSchema,
   retryPrompt,
   SceneValidationSchema,
   SYSTEM_PROMPT,
@@ -125,6 +128,19 @@ export class OpenAIVisionProvider implements VisionProvider {
     );
   }
 
+  checkRemoval(before: Buffer, after: Buffer): Promise<VisionResult<RemovalCheck>> {
+    return this.call(
+      'REMOVAL_CHECK',
+      'removal_check',
+      [before, after],
+      REMOVAL_CHECK_PROMPT,
+      ApiRemovalCheck,
+      RemovalCheckSchema,
+      ['ANTES', 'DEPOIS'],
+      'low',
+    );
+  }
+
   private async call<A extends z.ZodType, S extends z.ZodType>(
     kind: string,
     formatName: string,
@@ -133,8 +149,10 @@ export class OpenAIVisionProvider implements VisionProvider {
     apiSchema: A,
     finalSchema: S,
     captions?: string[],
+    effortOverride?: Effort,
   ): Promise<VisionResult<z.output<S>>> {
-    const { model, effort } = this.opts;
+    const { model } = this.opts;
+    const effort = effortOverride ?? this.opts.effort;
     const content: OpenAI.Responses.ResponseInputContent[] = [];
     images.forEach((img, i) => {
       if (captions?.[i])

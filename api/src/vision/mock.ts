@@ -1,5 +1,12 @@
 import sharp from 'sharp';
-import type { Change, Comparison, Inventory, Region, SceneValidation } from '../domain/types';
+import type {
+  Change,
+  Comparison,
+  Inventory,
+  Region,
+  RemovalCheck,
+  SceneValidation,
+} from '../domain/types';
 import type { VisionProvider, VisionResult } from './provider';
 
 /**
@@ -226,6 +233,18 @@ export class MockVisionProvider implements VisionProvider {
           : '[simulado] Nenhuma alteração nos produtos.',
         overallConfidence: changes.length ? 0.7 : 0.9,
       },
+      usage: NO_USAGE,
+    };
+  }
+
+  /** Reaproveita a heurística do compare: há algum "retirado"? */
+  async checkRemoval(before: Buffer, after: Buffer): Promise<VisionResult<RemovalCheck>> {
+    const { data } = await this.compare(before, after, null);
+    const quantity = data.changes
+      .filter((c) => c.change === 'removed')
+      .reduce((n, c) => n + c.quantity, 0);
+    return {
+      data: { removed: quantity > 0, quantity, confidence: quantity > 0 ? 0.75 : 0.9 },
       usage: NO_USAGE,
     };
   }

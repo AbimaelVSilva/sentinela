@@ -1,5 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { LoaderCircleIcon, RotateCcwIcon, SettingsIcon } from 'lucide-react';
+import {
+  LoaderCircleIcon,
+  PackageMinusIcon,
+  PackageSearchIcon,
+  RotateCcwIcon,
+  SettingsIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { InfoTip } from '@/components/InfoTip';
@@ -18,17 +24,24 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { type AnalysisPatch, type AnalysisSettings, api, type Camera, queryKeys } from '@/lib/api';
+import {
+  type AnalysisMode,
+  type AnalysisPatch,
+  type AnalysisSettings,
+  api,
+  type Camera,
+  queryKeys,
+} from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-type NumKey = Exclude<keyof AnalysisSettings, 'prefilterEnabled'>;
+type NumKey = Exclude<keyof AnalysisSettings, 'prefilterEnabled' | 'analysisMode'>;
 
 interface FieldDef {
   key: NumKey;
   label: string;
   help: string;
   /** percent: o valor salvo é fração 0..1 e a tela mostra em %. */
-  kind: 'percent' | 'int' | 'seconds' | 'fps';
+  kind: 'percent' | 'int' | 'seconds' | 'fps' | 'px';
   min: number;
   max: number;
   step: number;
@@ -131,8 +144,40 @@ const PREFILTER_FIELD: FieldDef = {
   step: 0.1,
 };
 
-const ALL_FIELDS = [PREFILTER_FIELD, ...DETECTION, ...TIMING];
-const UNIT: Record<FieldDef['kind'], string> = { percent: '%', int: '', seconds: 's', fps: 'fps' };
+const IMAGE_FIELD: FieldDef = {
+  key: 'imageMaxSide',
+  label: 'Tamanho das fotos enviadas à IA',
+  help: 'Maior lado, em pixels, das fotos antes/depois (recortadas na área da prateleira). Menor = mais barato, mas produtos pequenos podem passar despercebidos.',
+  kind: 'px',
+  min: 512,
+  max: 1920,
+  step: 64,
+};
+
+const MODES: { value: AnalysisMode; label: string; help: string; Icon: typeof PackageMinusIcon }[] =
+  [
+    {
+      value: 'full',
+      label: 'Completo',
+      help: 'Identifica cada produto que foi retirado, movido ou adicionado, com a posição na foto.',
+      Icon: PackageSearchIcon,
+    },
+    {
+      value: 'removal',
+      label: 'Só retirada',
+      help: 'Responde apenas se algo foi retirado e quantas unidades. Bem mais barato; não diz qual produto e ignora produtos movidos.',
+      Icon: PackageMinusIcon,
+    },
+  ];
+
+const ALL_FIELDS = [PREFILTER_FIELD, IMAGE_FIELD, ...DETECTION, ...TIMING];
+const UNIT: Record<FieldDef['kind'], string> = {
+  percent: '%',
+  int: '',
+  seconds: 's',
+  fps: 'fps',
+  px: 'px',
+};
 
 const toDisplay = (f: FieldDef, v: number) =>
   f.kind === 'percent' ? String(Number((v * 100).toFixed(2))) : String(v);
@@ -190,6 +235,7 @@ export function AnalysisSettingsButton({ camera }: { camera: Camera }) {
 function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void }) {
   const qc = useQueryClient();
   const { effective, defaults } = camera.analysis;
+  const [mode, setMode] = useState(effective.analysisMode);
   const [prefilter, setPrefilter] = useState(effective.prefilterEnabled);
   const [values, setValues] = useState<Record<NumKey, string>>(
     () =>
@@ -205,13 +251,15 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
     const n = Number(raw.replace(',', '.'));
     if (raw === '' || Number.isNaN(n)) errors[f.key] = 'Informe um número';
     else if (n < f.min || n > f.max) errors[f.key] = `Entre ${f.min} e ${f.max}${UNIT[f.kind]}`;
-    else if (f.kind === 'int' && !Number.isInteger(n)) errors[f.key] = 'Use um número inteiro';
+    else if ((f.kind === 'int' || f.kind === 'px') && !Number.isInteger(n))
+      errors[f.key] = 'Use um número inteiro';
   }
   const hasErrors = Object.keys(errors).length > 0;
 
   /** Monta o PATCH: igual ao padrão → null (remove personalização). */
   const buildPatch = (): AnalysisPatch => {
     const patch: AnalysisPatch = {};
+    patch.analysisMode = mode === defaults.analysisMode ? null : mode;
     patch.prefilterEnabled = prefilter === defaults.prefilterEnabled ? null : prefilter;
     for (const f of ALL_FIELDS) {
       const v = fromDisplay(f, values[f.key]);
@@ -235,6 +283,7 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
   });
 
   const resetAll = () => {
+    setMode(defaults.analysisMode);
     setPrefilter(defaults.prefilterEnabled);
     setValues(
       Object.fromEntries(ALL_FIELDS.map((f) => [f.key, toDisplay(f, defaults[f.key])])) as Record<
@@ -294,6 +343,41 @@ function AnalysisForm({ camera, onClose }: { camera: Camera; onClose: () => void
 
   return (
     <div className="grid gap-5">
+      <section className="grid gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-medium">Modo de análise</h3>
+            <InfoTip label="Sobre: Modo de análise">
+              O que a IA responde a cada passagem. No modo só retirada o custo por análise cai para
+              cerca de um quarto.
+            </InfoTip>
+          </div>
+          {mode !== defaults.analysisMode && <Badge variant="outline">personalizado</Badge>}
+        </div>
+        <div role="radiogroup" aria-label="Modo de análise" className="grid gap-2 sm:grid-cols-2">
+          {MODES.map(({ value, label, help, Icon }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={mode === value}
+              onClick={() => setMode(value)}
+              className={cn(
+                'flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50',
+                mode === value && 'border-primary bg-primary/5 ring-1 ring-primary',
+              )}
+            >
+              <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <span className="grid gap-0.5">
+                <span className="text-sm font-medium">{label}</span>
+                <span className="text-xs text-muted-foreground">{help}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="sm:w-1/2 sm:pr-1">{field(IMAGE_FIELD)}</div>
+      </section>
+
       <section className="grid gap-3 rounded-lg border p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5">

@@ -4,11 +4,13 @@ import {
   type GenerateContentResponse,
   GoogleGenAI,
   type Part,
+  ThinkingLevel,
 } from '@google/genai';
 import type { FastifyBaseLogger } from 'fastify';
 import { z } from 'zod';
-import type { Comparison, Inventory, SceneValidation } from '../domain/types';
+import type { Comparison, Inventory, RemovalCheck, SceneValidation } from '../domain/types';
 import {
+  ApiRemovalCheck,
   ApiSceneValidation,
   ComparisonSchema,
   comparePrompt,
@@ -19,6 +21,8 @@ import {
   inventoryContext,
   inventoryPrompt,
   parseVisionJson,
+  REMOVAL_CHECK_PROMPT,
+  RemovalCheckSchema,
   retryPrompt,
   SceneValidationSchema,
   SYSTEM_PROMPT,
@@ -34,6 +38,9 @@ import {
 
 /** Preços (USD por milhão de tokens: entrada, saída) só para a estimativa no log. */
 const PRICING: [RegExp, number, number][] = [
+  [/^gemini-(flash-lite-latest|3\.\d+-flash-lite)/, 0.3, 2.5],
+  [/^gemini-(flash-latest|3\.\d+-flash)/, 0.75, 3.75],
+  [/^gemini-(pro-latest|3\.\d+-pro)/, 2, 12],
   [/^gemini-2\.5-flash-lite/, 0.1, 0.4],
   [/^gemini-2\.5-flash/, 0.3, 2.5],
   [/^gemini-2\.5-pro/, 1.25, 10],
@@ -46,6 +53,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** A família Gemini 3 recomenda manter a temperatura padrão; nas anteriores usamos 0. */
 const keepDefaultTemperature = (model: string) => /^gemini-([3-9]|\d{2})/.test(model);
+
+/** `thinkingLevel` existe a partir do Gemini 3 (os aliases -latest apontam para ele). */
+const supportsThinkingLevel = (model: string) => /^gemini-([3-9]|\d{2})|-latest$/.test(model);
 
 type Content = { role: 'user' | 'model'; parts: Part[] };
 
@@ -114,6 +124,18 @@ export class GoogleVisionProvider implements VisionProvider {
     );
   }
 
+  checkRemoval(before: Buffer, after: Buffer): Promise<VisionResult<RemovalCheck>> {
+    return this.call(
+      'REMOVAL_CHECK',
+      [before, after],
+      REMOVAL_CHECK_PROMPT,
+      ApiRemovalCheck,
+      RemovalCheckSchema,
+      ['ANTES', 'DEPOIS'],
+      true,
+    );
+  }
+
   /** Repete em erros transitórios (alta demanda/limite por minuto) com espera crescente. */
   private async generateWithRetry(
     client: GoogleGenAI,
@@ -142,6 +164,8 @@ export class GoogleVisionProvider implements VisionProvider {
     apiSchema: A,
     finalSchema: S,
     captions?: string[],
+    /** Pergunta simples: pede pouco raciocínio (menos tokens de saída). */
+    lowThinking = false,
   ): Promise<VisionResult<z.output<S>>> {
     const { model } = this.opts;
     const parts: Part[] = [];
@@ -170,6 +194,9 @@ export class GoogleVisionProvider implements VisionProvider {
             responseJsonSchema: jsonSchema,
             maxOutputTokens: 16000,
             ...(keepDefaultTemperature(model) ? {} : { temperature: 0 }),
+            ...(lowThinking && supportsThinkingLevel(model)
+              ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+              : {}),
           },
         });
       } catch (err) {

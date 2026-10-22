@@ -63,3 +63,18 @@ export interface Comparison {
   summary: string;
   overallConfidence: number;
 }
+
+/**
+ * Modo de análise da câmera:
+ * - full: identifica cada produto que mudou (retirado, movido, adicionado);
+ * - removal: só responde se algo foi retirado e quantas unidades (mais barato).
+ */
+export type AnalysisMode = 'full' | 'removal';
+
+/** Resposta do modo "só retirada". */
+export interface RemovalCheck {
+  removed: boolean;
+  /** Unidades que sumiram (0 quando removed = false). */
+  quantity: number;
+  confidence: number;
+}

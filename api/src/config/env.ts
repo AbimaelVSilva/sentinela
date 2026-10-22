@@ -61,6 +61,10 @@ const EnvSchema = z.object({
   SCENE_DIFF_MIN: num(0.004),
   MAX_OCCLUSION_SECONDS: num(600),
   STABLE_MAX_WAIT_SECONDS: num(15),
+  /** Modo padrão das câmeras: full (identifica o produto) ou removal (só "saiu algo?"). */
+  ANALYSIS_MODE: z.enum(['full', 'removal']).default('full'),
+  /** Maior lado (px) das fotos enviadas à IA na comparação antes/depois. */
+  VISION_IMAGE_MAX_SIDE: z.coerce.number().int().min(512).max(1920).default(1568),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

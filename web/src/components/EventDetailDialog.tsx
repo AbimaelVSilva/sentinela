@@ -84,6 +84,8 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
   const changes = details?.comparison?.changes ?? [];
   const roi = details?.roi ?? null;
   const usage = details?.usage;
+  const removal = details?.removal;
+  const confidence = details?.comparison?.overallConfidence ?? removal?.confidence;
 
   return (
     <>
@@ -150,6 +152,20 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
         </div>
       )}
 
+      {removal && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Análise só retirada:</span>
+          {removal.removed ? (
+            <Badge className={CHANGE_STYLE.removed.badge}>
+              {removal.quantity} {removal.quantity === 1 ? 'item retirado' : 'itens retirados'}
+            </Badge>
+          ) : (
+            <Badge variant="outline">nada retirado</Badge>
+          )}
+          <ConfidenceBar value={removal.confidence} className="ml-auto" />
+        </div>
+      )}
+
       {details?.reason && REASON_TEXT[details.reason] && (
         <p className="text-sm text-muted-foreground">{REASON_TEXT[details.reason]}</p>
       )}
@@ -165,7 +181,7 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
           {event.sceneDiffScore != null ? `${(event.sceneDiffScore * 100).toFixed(2)}%` : '—'}
         </Meta>
         <Meta label="Confiança geral">
-          {details?.comparison ? `${Math.round(details.comparison.overallConfidence * 100)}%` : '—'}
+          {confidence != null ? `${Math.round(confidence * 100)}%` : '—'}
         </Meta>
         <Meta label="Tokens (entrada/saída)">
           {usage ? `${usage.inputTokens} / ${usage.outputTokens}` : '—'}

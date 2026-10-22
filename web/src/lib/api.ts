@@ -173,7 +173,12 @@ export interface AnalysisSettings {
   stableMaxWaitSeconds: number;
   maxOcclusionSeconds: number;
   analysisFps: number;
+  /** full = identifica o produto; removal = só responde se algo saiu e quantos. */
+  analysisMode: AnalysisMode;
+  /** Maior lado (px) das fotos antes/depois enviadas à IA. */
+  imageMaxSide: number;
 }
+export type AnalysisMode = 'full' | 'removal';
 export type AnalysisPatch = { [K in keyof AnalysisSettings]?: AnalysisSettings[K] | null };
 
 export interface Camera {
@@ -205,7 +210,10 @@ export interface Camera {
 
 export interface EventDetails {
   reason?: 'occlusion_timeout' | 'below_diff_threshold' | 'vision' | 'vision_error';
+  mode?: AnalysisMode;
   comparison?: Comparison;
+  /** Resposta do modo "só retirada". */
+  removal?: { removed: boolean; quantity: number; confidence: number };
   error?: string;
   usage?: { inputTokens: number; outputTokens: number; estimatedCostUsd?: number };
   roi?: Point[] | null;

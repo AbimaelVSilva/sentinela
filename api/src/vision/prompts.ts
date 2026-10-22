@@ -200,6 +200,34 @@ export function inventoryContext(
     .join('\n');
 }
 
+// ---------- REMOVAL_CHECK (modo "só retirada") ----------
+
+export const ApiRemovalCheck = z.object({
+  removed: z
+    .boolean()
+    .describe('true se pelo menos uma unidade visível na foto ANTES não aparece mais na DEPOIS'),
+  quantity: z.number().int().describe('quantas unidades sumiram; 0 se nada saiu'),
+  confidence: z.number().describe('0..1'),
+});
+
+export const RemovalCheckSchema = ApiRemovalCheck.extend({
+  quantity: z.number().int(),
+  confidence: z.number().transform(clamp01),
+}).transform((r) => ({ ...r, quantity: r.removed ? Math.max(1, r.quantity) : 0 }));
+
+/** Pergunta única e curta: o que pesa no custo são as fotos, não a resposta. */
+export const REMOVAL_CHECK_PROMPT = `As duas fotos mostram a MESMA prateleira de uma loja autônoma, pela mesma câmera fixa: a primeira é ANTES e a segunda é DEPOIS de uma pessoa passar.
+Pergunta: está faltando, na foto DEPOIS, algum produto que estava na foto ANTES?
+
+- removed = true somente se pelo menos uma unidade visível no ANTES não aparece mais em nenhum lugar do DEPOIS.
+- Produto apenas mudado de lugar, girado ou empurrado continua na prateleira: não é retirada.
+- Produto adicionado ou reposto não é retirada.
+- Ignore iluminação, sombra, reflexo no vidro, embaçamento, compressão de vídeo e pequenos deslocamentos da imagem.
+- Ignore pessoas, mãos ou braços que ainda apareçam.
+- quantity: quantas unidades sumiram (0 se removed = false).
+- confidence: sua confiança na resposta, de 0 a 1.
+Não descreva nem identifique os produtos.`;
+
 // ---------- Formato box_2d (Gemini) ----------
 
 const ApiBox2d = z

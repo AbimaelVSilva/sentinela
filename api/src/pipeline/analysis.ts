@@ -159,33 +159,44 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
     const crop = roiBoundingBox(roi, ROI_MARGIN);
     try {
       const [beforeCrop, afterCrop] = await Promise.all([
-        cropJpeg(baseline.jpeg, crop, { maxSide: MAX_SIDE }),
-        cropJpeg(after, crop, { maxSide: MAX_SIDE }),
+        cropJpeg(baseline.jpeg, crop, { maxSide: tuning.imageMaxSide }),
+        cropJpeg(after, crop, { maxSide: tuning.imageMaxSide }),
       ]);
-      const invInCrop: Inventory | null = camera.inventory
-        ? {
-            items: camera.inventory.items.map((i) => ({
-              ...i,
-              region: regionToCrop(i.region, crop),
-            })),
-          }
-        : null;
-      const res = await vision.compare(beforeCrop, afterCrop, invInCrop);
-      comparison = {
-        ...res.data,
-        changes: res.data.changes.map((c) => ({
-          ...c,
-          beforeRegion: c.beforeRegion ? regionFromCrop(c.beforeRegion, crop) : null,
-          afterRegion: c.afterRegion ? regionFromCrop(c.afterRegion, crop) : null,
-        })),
-      };
-      type = classifyComparison(comparison);
-      summary =
-        comparison.summary ||
-        (type === 'no_change'
-          ? 'Nenhuma alteração nos produtos.'
-          : 'Alteração detectada na prateleira.');
-      details = { reason: 'vision', comparison, usage: res.usage, crop, roi };
+      if (tuning.analysisMode === 'removal') {
+        // Modo "só retirada": uma pergunta de sim/não com a quantidade.
+        const res = await vision.checkRemoval(beforeCrop, afterCrop);
+        const removal = res.data;
+        type = removal.removed ? 'removed' : 'no_change';
+        summary = removal.removed
+          ? `${removal.quantity} ${removal.quantity === 1 ? 'item retirado' : 'itens retirados'} da prateleira.`
+          : 'Nenhum item faltando na prateleira.';
+        details = { reason: 'vision', mode: 'removal', removal, usage: res.usage, crop, roi };
+      } else {
+        const invInCrop: Inventory | null = camera.inventory
+          ? {
+              items: camera.inventory.items.map((i) => ({
+                ...i,
+                region: regionToCrop(i.region, crop),
+              })),
+            }
+          : null;
+        const res = await vision.compare(beforeCrop, afterCrop, invInCrop);
+        comparison = {
+          ...res.data,
+          changes: res.data.changes.map((c) => ({
+            ...c,
+            beforeRegion: c.beforeRegion ? regionFromCrop(c.beforeRegion, crop) : null,
+            afterRegion: c.afterRegion ? regionFromCrop(c.afterRegion, crop) : null,
+          })),
+        };
+        type = classifyComparison(comparison);
+        summary =
+          comparison.summary ||
+          (type === 'no_change'
+            ? 'Nenhuma alteração nos produtos.'
+            : 'Alteração detectada na prateleira.');
+        details = { reason: 'vision', mode: 'full', comparison, usage: res.usage, crop, roi };
+      }
     } catch (err) {
       const usage = err instanceof VisionError ? err.usage : null;
       const message = err instanceof Error ? err.message : String(err);
@@ -240,6 +251,8 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
   log.info({ cameraId, type, score, summary }, 'Evento gerado');
 
   if (
+    // No modo "só retirada" o inventário não é usado: não gasta chamadas atualizando.
+    tuning.analysisMode === 'full' &&
     camera.eventsSinceInventory + 1 >= env.INVENTORY_REFRESH_EVERY &&
     type !== 'analysis_failed'
   ) {

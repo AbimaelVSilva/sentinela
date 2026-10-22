@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { Comparison, Inventory, SceneValidation } from '../domain/types';
+import type { Comparison, Inventory, RemovalCheck, SceneValidation } from '../domain/types';
 
 export interface VisionUsage {
   inputTokens: number;
@@ -28,6 +28,8 @@ export interface VisionProvider {
     after: Buffer,
     inventory: Inventory | null,
   ): Promise<VisionResult<Comparison>>;
+  /** Modo "só retirada": algum produto do ANTES sumiu no DEPOIS? Quantos? */
+  checkRemoval(before: Buffer, after: Buffer): Promise<VisionResult<RemovalCheck>>;
 }
 
 export class VisionError extends Error {

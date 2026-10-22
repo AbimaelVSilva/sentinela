@@ -28,6 +28,18 @@ describe('configurações de análise por câmera', () => {
     expect(mergeAnalysisOverrides(b, { prefilterEnabled: null })).toBeNull();
   });
 
+  it('modo de análise e tamanho da foto: padrão full/1568 e valores válidos', () => {
+    const d = defaultAnalysisSettings();
+    expect(d.analysisMode).toBe('full');
+    expect(d.imageMaxSide).toBe(1568);
+    expect(resolveAnalysisSettings({ analysisMode: 'removal' }).analysisMode).toBe('removal');
+    expect(AnalysisPatchSchema.safeParse({ analysisMode: 'removal' }).success).toBe(true);
+    expect(AnalysisPatchSchema.safeParse({ analysisMode: 'outro' }).success).toBe(false);
+    expect(AnalysisPatchSchema.safeParse({ imageMaxSide: 1024 }).success).toBe(true);
+    expect(AnalysisPatchSchema.safeParse({ imageMaxSide: 300 }).success).toBe(false);
+    expect(AnalysisPatchSchema.safeParse({ imageMaxSide: 1000.5 }).success).toBe(false);
+  });
+
   it('valida limites e rejeita campos desconhecidos', () => {
     expect(AnalysisPatchSchema.safeParse({ sceneDiffMin: 0.5 }).success).toBe(false);
     expect(AnalysisPatchSchema.safeParse({ enterConsecutiveFrames: 2.5 }).success).toBe(false);

@@ -79,6 +79,9 @@ class VisionRouter implements VisionProvider {
   compare(...args: Parameters<VisionProvider['compare']>) {
     return this.current().compare(...args);
   }
+  checkRemoval(before: Buffer, after: Buffer) {
+    return this.current().checkRemoval(before, after);
+  }
 }
 
 let instance: VisionProvider | null = null;

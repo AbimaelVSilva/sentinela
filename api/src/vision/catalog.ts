@@ -23,7 +23,7 @@ export function providerCatalog(): ProviderInfo[] {
       configured: !!(env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN),
       keyEnv: 'ANTHROPIC_API_KEY',
       defaultModel: env.VISION_MODEL,
-      suggestedModels: ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-4-5'],
+      suggestedModels: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'],
     },
     {
       id: 'openai',
