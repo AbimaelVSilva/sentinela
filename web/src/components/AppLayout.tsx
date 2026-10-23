@@ -1,5 +1,6 @@
 import { ShieldCheckIcon } from 'lucide-react';
-import { Link, Outlet } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
+import { cn } from '@/lib/utils';
 import { useSSE } from '@/lib/sse';
 import { ApiStatus } from './ApiStatus';
 import { NotificationBell } from './NotificationBell';
@@ -10,6 +11,7 @@ import { ThemeToggle } from './ThemeToggle';
 export function AppLayout() {
   // Uma conexão SSE global mantém status, estados e eventos atualizados em todas as telas.
   useSSE();
+  const { pathname } = useLocation();
   return (
     <div className="flex min-h-svh flex-col">
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
@@ -18,6 +20,28 @@ export function AppLayout() {
             <ShieldCheckIcon className="size-5 text-severity-attention" />
             Sentinela
           </Link>
+          <nav className="hidden items-center gap-1 sm:flex" aria-label="Principal">
+            {[
+              {
+                to: '/',
+                label: 'Lojas',
+                active: pathname === '/' || pathname.startsWith('/lojas'),
+              },
+              { to: '/alertas', label: 'Alertas', active: pathname.startsWith('/alertas') },
+            ].map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                aria-current={l.active ? 'page' : undefined}
+                className={cn(
+                  'rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                  l.active && 'bg-accent font-medium text-foreground',
+                )}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
           <div className="ml-auto flex items-center gap-2">
             <ApiStatus />
             <NotificationBell />

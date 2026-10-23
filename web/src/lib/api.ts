@@ -347,6 +347,20 @@ export interface AlertItem {
   event: SentinelaEvent;
 }
 
+export interface AlertFilters {
+  severity?: 'alert' | 'attention';
+  storeId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface AlertsPage {
+  items: AlertItem[];
+  nextCursor: string | null;
+  /** Só na primeira página: total por cor com os filtros (exceto a cor). */
+  counts?: { alert: number; attention: number };
+}
+
 export interface AuthUser {
   id: string;
   username: string;
@@ -418,6 +432,12 @@ export const api = {
       '/integrations/klavi',
     ),
   listAlerts: () => apiFetch<{ items: AlertItem[] }>('/alerts?limit=30'),
+  listAlertsPage: (filters: AlertFilters, cursor?: string) => {
+    const q = new URLSearchParams({ limit: '30' });
+    for (const [k, v] of Object.entries(filters)) if (v) q.set(k, v);
+    if (cursor) q.set('cursor', cursor);
+    return apiFetch<AlertsPage>(`/alerts?${q.toString()}`);
+  },
 
   getSettings: () => apiFetch<AppSettings>('/settings'),
   updateSettings: (vision: { provider?: VisionProviderId; model?: string; effort?: Effort }) =>
@@ -435,6 +455,7 @@ export const queryKeys = {
   calibration: (cameraId: string) => ['cameras', cameraId, 'calibration'] as const,
   settings: ['settings'] as const,
   alerts: ['alerts'] as const,
+  alertsPage: (filters: AlertFilters) => ['alerts', 'page', filters] as const,
   klavi: ['integrations', 'klavi'] as const,
   me: ['auth', 'me'] as const,
   users: ['users'] as const,

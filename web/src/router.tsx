@@ -7,6 +7,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { CameraPage } from '@/pages/CameraPage';
 import { StorePage } from '@/pages/StorePage';
 import { StoresPage } from '@/pages/StoresPage';
+import { AlertsPage } from '@/pages/AlertsPage';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/usuarios', element: <UsersPage /> },
       { path: '/', element: <StoresPage /> },
+      { path: '/alertas', element: <AlertsPage /> },
       { path: '/lojas/:storeId', element: <StorePage /> },
       { path: '/lojas/:storeId/cameras/:cameraId', element: <CameraPage /> },
       { path: '*', element: <NotFoundPage /> },

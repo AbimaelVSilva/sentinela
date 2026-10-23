@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { BellIcon, CheckCheckIcon, Volume2Icon, VolumeXIcon } from 'lucide-react';
+import { ArrowRightIcon, BellIcon, CheckCheckIcon, Volume2Icon, VolumeXIcon } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
 import { EventIcon } from '@/components/EventIcon';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { isAlertMuted, onAlertMutedChange, setAlertMuted } from '@/lib/alert-sound';
 import { eventLink, getAlertsReadAt, onAlertsReadChange, setAlertsReadAt } from '@/lib/alerts-read';
@@ -75,10 +74,16 @@ export function NotificationBell() {
         </TooltipTrigger>
         <TooltipContent>Alertas</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1rem))] p-0">
-        <div className="flex items-center gap-1 border-b px-3 py-2">
+      <PopoverContent
+        align="end"
+        // Sem foco automático: senão o tooltip do botão de som abre junto com o sino.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        // gap-0: o PopoverContent padrão separa os filhos; aqui cabeçalho, lista e rodapé colam.
+        className="flex max-h-[min(34rem,calc(100svh-5rem))] w-[min(24rem,calc(100vw-1rem))] flex-col gap-0 overflow-hidden p-0"
+      >
+        <div className="flex shrink-0 items-center gap-1 border-b px-3 py-2">
           <span className="text-sm font-medium">Alertas</span>
-          <span className="text-xs text-muted-foreground">retirados e movidos</span>
+          <span className="text-xs text-muted-foreground">vermelhos e laranjas</span>
           <div className="ml-auto flex items-center">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -113,7 +118,8 @@ export function NotificationBell() {
             Nenhum alerta por enquanto.
           </p>
         ) : (
-          <ScrollArea className="max-h-[min(28rem,70svh)]">
+          // Rolagem nativa: o ScrollArea do Radix ignora o max-height e deixa o texto vazar.
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <ul className="divide-y">
               {items.map((a) => {
                 const sev = SEVERITY_CLASSES[a.event.severity];
@@ -155,8 +161,18 @@ export function NotificationBell() {
                 );
               })}
             </ul>
-          </ScrollArea>
+          </div>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            void navigate('/alertas');
+          }}
+          className="flex shrink-0 items-center justify-center gap-1.5 border-t px-3 py-2.5 text-sm font-medium hover:bg-accent"
+        >
+          Ver todos os alertas <ArrowRightIcon className="size-4" />
+        </button>
       </PopoverContent>
     </Popover>
   );
