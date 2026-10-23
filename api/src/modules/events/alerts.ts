@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { db } from '../../db/client';
@@ -28,7 +28,13 @@ export const alertRoutes: FastifyPluginAsyncZod = async (app) => {
         .from(events)
         .innerJoin(cameras, eq(cameras.id, events.cameraId))
         .innerJoin(stores, eq(stores.id, cameras.storeId))
-        .where(inArray(events.severity, ['alert', 'attention']))
+        .where(
+          and(
+            inArray(events.severity, ['alert', 'attention']),
+            // Aguardando a conferência de compras: só entra no sino depois dela.
+            sql`coalesce(${events.purchase}->>'status', '') <> 'pending'`,
+          ),
+        )
         .orderBy(desc(events.createdAt))
         .limit(req.query.limit);
       return {

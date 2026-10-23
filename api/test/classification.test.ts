@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classifyComparison, EVENT_META, severityOf } from '../src/domain/classification';
+import {
+  classifyComparison,
+  EVENT_META,
+  eventMeta,
+  severityOf,
+} from '../src/domain/classification';
 import { applyChanges } from '../src/domain/inventory';
 import type { Change } from '../src/domain/types';
 
@@ -73,5 +78,34 @@ describe('applyChanges (inventário)', () => {
   it('não altera o inventário original', () => {
     applyChanges(inv, [change('removed', { itemId: 'p1' })]);
     expect(inv.items[0]!.quantity).toBe(2);
+  });
+});
+
+describe('cores com a conferência de compras (Klavi)', () => {
+  it('retirada sem compra → vermelho; com compra → laranja', () => {
+    expect(eventMeta('removed', { status: 'none' })).toEqual({
+      severity: 'alert',
+      label: 'Alerta: retirada sem compra',
+    });
+    expect(eventMeta('removed', { status: 'found' })).toEqual({
+      severity: 'attention',
+      label: 'Atenção: retirada com compra',
+    });
+  });
+
+  it('qualquer passagem com compra vira laranja', () => {
+    expect(eventMeta('no_change', { status: 'found' }).severity).toBe('attention');
+    expect(eventMeta('moved', { status: 'found' }).severity).toBe('attention');
+  });
+
+  it('sem integração, pendente ou com erro: segue a análise', () => {
+    expect(eventMeta('removed', null)).toEqual(EVENT_META.removed);
+    expect(eventMeta('removed', { status: 'pending' })).toEqual(EVENT_META.removed);
+    expect(eventMeta('removed', { status: 'error' })).toEqual(EVENT_META.removed);
+    expect(eventMeta('no_change', { status: 'none' })).toEqual(EVENT_META.no_change);
+  });
+
+  it('falha de análise continua falha mesmo com compra', () => {
+    expect(eventMeta('analysis_failed', { status: 'found' })).toEqual(EVENT_META.analysis_failed);
   });
 });

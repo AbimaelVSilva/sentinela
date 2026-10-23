@@ -4,6 +4,7 @@ import { sqlClient } from './db/client';
 import { StatusPoller } from './modules/mediamtx/status-poller';
 import { loadVisionSettings } from './modules/settings/service';
 import { startClipRetentionJob } from './pipeline/clip-retention';
+import { resumePendingPurchaseChecks } from './modules/purchases/checker';
 import { WorkerManager } from './pipeline/worker-manager';
 import { setServices } from './services';
 import { getVisionProvider } from './vision';
@@ -44,6 +45,9 @@ try {
   await workers.start();
   poller.start();
   stopRetention = startClipRetentionJob(app.log.child({ module: 'retention' }));
+  void resumePendingPurchaseChecks(app.log.child({ module: 'purchases' })).catch((err: unknown) =>
+    app.log.warn({ err }, 'Falha ao retomar conferências de compras'),
+  );
 } catch (err) {
   app.log.fatal(err);
   process.exit(1);

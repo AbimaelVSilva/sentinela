@@ -43,10 +43,12 @@ export interface CalibrationMsg {
 export interface EventCreatedMsg {
   cameraId: string;
   event: SentinelaEvent;
-  /** Só em event.created: onde aconteceu (para notificações). */
+  /** Onde aconteceu (para notificações). */
   storeId?: string;
   storeName?: string;
   cameraName?: string;
+  /** event.updated: avisar agora (ex.: a conferência de compras acabou de sair). */
+  notify?: boolean;
 }
 
 function patchCamera(qc: QueryClient, cameraId: string, patch: (c: Camera) => Camera) {
@@ -77,8 +79,35 @@ function handleCalibration(qc: QueryClient, msg: CalibrationMsg) {
   }
 }
 
-/** Evento já existente mudou (ex.: vídeo pronto): troca nas listas e no detalhe. */
-function handleEventUpdated(qc: QueryClient, msg: EventCreatedMsg) {
+/** Som + aviso com "Ver" para alertas (vermelho) e atenções (laranja). */
+function notifyAlert(msg: EventCreatedMsg, navigate: (to: string) => void) {
+  const { event } = msg;
+  if (event.severity !== 'alert' && event.severity !== 'attention') return;
+  playAlertSound(event.severity);
+  const place = [msg.storeName, msg.cameraName].filter(Boolean).join(' · ');
+  const buyers = (event.purchase?.orders ?? [])
+    .map((o) => o.customerName)
+    .filter(Boolean)
+    .join(', ');
+  const options = {
+    description: [place, event.summary, buyers && `Compra: ${buyers}`].filter(Boolean).join(' — '),
+    className: `toast-severity-${event.severity}`,
+    duration: 10_000,
+    action: msg.storeId
+      ? { label: 'Ver', onClick: () => navigate(eventLink(msg.storeId!, msg.cameraId, event.id)) }
+      : undefined,
+  };
+  if (event.severity === 'alert') toast.error(event.label, options);
+  else toast.warning(event.label, options);
+}
+
+/** Evento já existente mudou (vídeo pronto, compras conferidas): troca nas listas e no detalhe. */
+function handleEventUpdated(
+  qc: QueryClient,
+  msg: EventCreatedMsg,
+  notify: boolean,
+  navigate: (to: string) => void,
+) {
   const { event } = msg;
   for (const q of qc.getQueryCache().findAll({ queryKey: queryKeys.events(msg.cameraId) })) {
     qc.setQueryData<InfiniteData<EventsPage>>(q.queryKey, (old) =>
@@ -94,6 +123,11 @@ function handleEventUpdated(qc: QueryClient, msg: EventCreatedMsg) {
     );
   }
   qc.setQueryData(queryKeys.event(event.id), event);
+  if (msg.notify) {
+    void qc.invalidateQueries({ queryKey: queryKeys.alerts });
+    void qc.invalidateQueries({ queryKey: queryKeys.stores });
+    if (notify) notifyAlert(msg, navigate);
+  }
 }
 
 function handleEvent(
@@ -122,22 +156,11 @@ function handleEvent(
   void qc.invalidateQueries({ queryKey: queryKeys.camera(msg.cameraId), exact: true });
 
   if (event.severity !== 'alert' && event.severity !== 'attention') return;
+  // Conferindo compras na Klavi: o aviso sai quando a conferência terminar (event.updated).
+  if (event.purchase?.status === 'pending') return;
   // Sino de notificações (lista de alertas recentes).
   void qc.invalidateQueries({ queryKey: queryKeys.alerts });
-  if (!notify) return;
-
-  playAlertSound(event.severity);
-  const place = [msg.storeName, msg.cameraName].filter(Boolean).join(' · ');
-  const options = {
-    description: [place, event.summary].filter(Boolean).join(' — '),
-    className: `toast-severity-${event.severity}`,
-    duration: 10_000,
-    action: msg.storeId
-      ? { label: 'Ver', onClick: () => navigate(eventLink(msg.storeId!, msg.cameraId, event.id)) }
-      : undefined,
-  };
-  if (event.severity === 'alert') toast.error(event.label, options);
-  else toast.warning(event.label, options);
+  if (notify) notifyAlert(msg, navigate);
 }
 
 /**
@@ -211,7 +234,7 @@ export function useSSE(cameraId?: string, opts: { notify?: boolean } = {}) {
       });
       es.addEventListener('event.updated', (e) => {
         const msg = parse<EventCreatedMsg>(e);
-        if (msg) handleEventUpdated(qc, msg);
+        if (msg) handleEventUpdated(qc, msg, notify, (to) => navigateRef.current(to));
       });
     };
 

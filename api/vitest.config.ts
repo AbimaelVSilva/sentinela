@@ -8,6 +8,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: 'postgres://test:test@localhost:5432/test',
       PUBLIC_RTMP_URL: 'rtmp://example.test:1935',
+      KLAVI_API_URL: 'https://klavi.example.test',
+      KLAVI_USERNAME: 'gestor@example.test',
+      KLAVI_PASSWORD: 'senha-de-teste',
     },
   },
 });

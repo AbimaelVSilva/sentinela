@@ -12,12 +12,18 @@ const IdParams = z.object({ id: z.uuid() });
 const StoreBody = z.object({
   name: z.string().trim().min(1, 'Informe o nome').max(120),
   address: z.string().trim().max(300).nullish(),
+  /** Filiais da Klavi (ids de 24 caracteres hex); [] remove a integração. */
+  klaviBranchIds: z
+    .array(z.string().regex(/^[a-f0-9]{24}$/, 'Filial da Klavi inválida'))
+    .max(10)
+    .nullish(),
 });
 
 const serializeStore = (s: Store) => ({
   id: s.id,
   name: s.name,
   address: s.address,
+  klaviBranchIds: s.klaviBranchIds ?? [],
   createdAt: s.createdAt.toISOString(),
   updatedAt: s.updatedAt.toISOString(),
 });
@@ -82,7 +88,11 @@ export const storeRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post('/stores', { schema: { body: StoreBody } }, async (req, reply) => {
     const [row] = await db
       .insert(stores)
-      .values({ name: req.body.name, address: req.body.address || null })
+      .values({
+        name: req.body.name,
+        address: req.body.address || null,
+        klaviBranchIds: req.body.klaviBranchIds?.length ? req.body.klaviBranchIds : null,
+      })
       .returning();
     const [full] = await loadStores([row!.id]);
     return reply.code(201).send(full);
@@ -101,6 +111,8 @@ export const storeRoutes: FastifyPluginAsyncZod = async (app) => {
       const patch: Partial<typeof stores.$inferInsert> = {};
       if (req.body.name !== undefined) patch.name = req.body.name;
       if (req.body.address !== undefined) patch.address = req.body.address || null;
+      if (req.body.klaviBranchIds !== undefined)
+        patch.klaviBranchIds = req.body.klaviBranchIds?.length ? req.body.klaviBranchIds : null;
       if (Object.keys(patch).length > 0) {
         const res = await db
           .update(stores)

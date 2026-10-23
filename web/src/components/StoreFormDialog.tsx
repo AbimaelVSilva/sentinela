@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckIcon, LoaderCircleIcon } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api, queryKeys, type Store } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 type Props = {
   open: boolean;
@@ -36,10 +38,22 @@ function StoreForm({ onOpenChange, store, onSaved }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState(store?.name ?? '');
   const [address, setAddress] = useState(store?.address ?? '');
+  const [branches, setBranches] = useState<string[]>(store?.klaviBranchIds ?? []);
+  const klavi = useQuery({
+    queryKey: queryKeys.klavi,
+    queryFn: api.getKlavi,
+    staleTime: 5 * 60_000,
+  });
+  const toggleBranch = (id: string) =>
+    setBranches((b) => (b.includes(id) ? b.filter((x) => x !== id) : [...b, id]));
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body = { name: name.trim(), address: address.trim() || null };
+      const body = {
+        name: name.trim(),
+        address: address.trim() || null,
+        ...(klavi.data?.configured ? { klaviBranchIds: branches } : {}),
+      };
       return store ? api.updateStore(store.id, body) : api.createStore(body);
     },
     onSuccess: (saved) => {
@@ -88,6 +102,58 @@ function StoreForm({ onOpenChange, store, onSaved }: Props) {
           maxLength={300}
         />
       </div>
+      {klavi.isPending ? (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <LoaderCircleIcon className="size-3 animate-spin" /> Carregando filiais da Klavi…
+        </p>
+      ) : klavi.data?.configured ? (
+        <div className="grid gap-2">
+          <Label>Filial na Klavi (vendas do totem)</Label>
+          {klavi.data.error ? (
+            <p className="text-xs text-destructive">{klavi.data.error}</p>
+          ) : (
+            <div
+              role="group"
+              aria-label="Filiais da Klavi"
+              className="max-h-48 divide-y overflow-y-auto rounded-md border"
+            >
+              {klavi.data.branches.map((b) => {
+                const on = branches.includes(b.id);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    onClick={() => toggleBranch(b.id)}
+                    className={cn(
+                      'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50',
+                      on && 'bg-primary/5 font-medium',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex size-4 shrink-0 items-center justify-center rounded border',
+                        on && 'border-primary bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {on && <CheckIcon className="size-3" />}
+                    </span>
+                    <span className="truncate">{b.name}</span>
+                    {!b.active && (
+                      <span className="ml-auto text-xs text-muted-foreground">inativa</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Cada ocorrência mostra as compras feitas nessas filiais durante a passagem (1 min antes
+            e depois).
+          </p>
+        </div>
+      ) : null}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancelar

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { env } from './config/env';
 import { cameraRoutes } from './modules/cameras/routes';
 import { alertRoutes } from './modules/events/alerts';
+import { purchaseRoutes } from './modules/purchases/routes';
 import { eventRoutes } from './modules/events/routes';
 import { sseRoutes } from './modules/events/sse';
 import { registerAuthGuard } from './modules/auth/guard';
@@ -92,6 +93,7 @@ export async function buildApp() {
   await app.register(cameraRoutes);
   await app.register(eventRoutes);
   await app.register(alertRoutes);
+  await app.register(purchaseRoutes);
   await app.register(sseRoutes);
   await app.register(mediamtxAuthRoutes);
   await app.register(settingsRoutes);

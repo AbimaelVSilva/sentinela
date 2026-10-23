@@ -1,5 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { FilmIcon, ImageOffIcon, LoaderCircleIcon } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  FilmIcon,
+  ImageOffIcon,
+  LoaderCircleIcon,
+  RefreshCwIcon,
+  ShoppingCartIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { EventIcon } from '@/components/EventIcon';
 import { RoiOverlay } from '@/components/RoiOverlay';
@@ -17,12 +25,13 @@ import {
   type Change,
   fileUrl,
   type Point,
+  type PurchaseCheck,
   queryKeys,
   type Region,
   type SentinelaEvent,
   type Snapshot,
 } from '@/lib/api';
-import { SEVERITY_CLASSES, formatDuration, formatTime } from '@/lib/labels';
+import { SEVERITY_CLASSES, formatClock, formatDuration, formatTime } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 
 const CHANGE_STYLE: Record<
@@ -165,6 +174,8 @@ function Detail({ initial }: { initial: SentinelaEvent }) {
           <ConfidenceBar value={removal.confidence} className="ml-auto" />
         </div>
       )}
+
+      <PurchasesSection event={event} />
 
       {details?.reason && REASON_TEXT[details.reason] && (
         <p className="text-sm text-muted-foreground">{REASON_TEXT[details.reason]}</p>
@@ -341,5 +352,102 @@ function SnapshotView({
         )}
       </div>
     </figure>
+  );
+}
+
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Compras na loja (Klavi) entre 1 min antes da entrada e 1 min depois da saída. */
+function PurchasesSection({ event }: { event: SentinelaEvent }) {
+  const qc = useQueryClient();
+  const purchase: PurchaseCheck | null = event.purchase;
+  const check = useMutation({
+    mutationFn: () => api.checkPurchases(event.id),
+    onSuccess: (ev) => {
+      qc.setQueryData(queryKeys.event(ev.id), ev);
+      void qc.invalidateQueries({ queryKey: queryKeys.events(ev.cameraId) });
+    },
+    onError: (err) =>
+      toast.error('Não foi possível conferir as compras', { description: err.message }),
+  });
+  if (!event.personLeftAt) return null;
+
+  const retry = (label: string) => (
+    <Button size="sm" variant="outline" onClick={() => check.mutate()} disabled={check.isPending}>
+      {check.isPending ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />} {label}
+    </Button>
+  );
+
+  if (!purchase) {
+    // Loja sem filial da Klavi (ou evento anterior à integração): conferência sob demanda.
+    return <div className="flex justify-end">{retry('Conferir compras na Klavi')}</div>;
+  }
+
+  const range = `${formatClock(purchase.windowFrom)} – ${formatClock(purchase.windowTo)}`;
+  return (
+    <section className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-sm font-medium">
+          <ShoppingCartIcon className="size-4" /> Compras na loja
+          <span className="font-normal text-muted-foreground">({range})</span>
+        </h3>
+        {(purchase.status === 'error' || purchase.status === 'none') && retry('Conferir de novo')}
+      </div>
+
+      {purchase.status === 'pending' && (
+        <p className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
+          <LoaderCircleIcon className="size-4 animate-spin" /> Aguardando o fim da janela para
+          conferir as vendas do totem (até {formatClock(purchase.windowTo)}).
+        </p>
+      )}
+      {purchase.status === 'error' && (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Não foi possível consultar a Klavi: {purchase.error}
+        </p>
+      )}
+      {purchase.status === 'none' && (
+        <p
+          className={cn(
+            'rounded-lg border px-3 py-2 text-sm',
+            event.type === 'removed'
+              ? 'border-severity-alert/40 bg-severity-alert/10 text-severity-alert'
+              : 'text-muted-foreground',
+          )}
+        >
+          Nenhuma compra registrada no totem nesse intervalo.
+        </p>
+      )}
+      {purchase.status === 'found' && (
+        <ul className="divide-y rounded-lg border border-severity-attention/40">
+          {purchase.orders.map((o) => (
+            <li key={o.id} className="space-y-1 px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {formatClock(o.createdAt)}
+                </span>
+                <span className="font-medium">{o.customerName ?? 'Cliente não identificado'}</span>
+                {o.cpf && <span className="text-xs text-muted-foreground">CPF {o.cpf}</span>}
+                <span className="ml-auto font-medium">{brl.format(o.total)}</span>
+              </div>
+              <p className="text-muted-foreground">
+                {o.items.map((i) => `${i.quantity}× ${i.title}`).join(', ') || 'Sem itens'}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {o.paymentMethod && <Badge variant="outline">{o.paymentMethod}</Badge>}
+                <Badge
+                  variant="outline"
+                  className={o.paid ? 'border-success/50 text-success' : 'text-muted-foreground'}
+                >
+                  {o.paid ? 'Pago' : 'Pagamento não confirmado'}
+                </Badge>
+                {o.seq != null && (
+                  <span className="text-xs text-muted-foreground">pedido #{o.seq}</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

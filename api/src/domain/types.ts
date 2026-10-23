@@ -78,3 +78,31 @@ export interface RemovalCheck {
   quantity: number;
   confidence: number;
 }
+
+/** Pedido da Klavi resumido para mostrar na ocorrência (CPF mascarado). */
+export interface PurchaseOrder {
+  id: string;
+  seq: number | null;
+  createdAt: string;
+  total: number;
+  paid: boolean;
+  paymentMethod: string | null;
+  customerName: string | null;
+  cpf: string | null;
+  items: { title: string; quantity: number; price: number }[];
+}
+
+/**
+ * Conferência de compras da ocorrência:
+ * - pending: aguardando a janela fechar (o alerta só é avisado depois);
+ * - found / none: houve ou não compra na janela;
+ * - error: não foi possível consultar a Klavi.
+ */
+export interface PurchaseCheck {
+  status: 'pending' | 'found' | 'none' | 'error';
+  windowFrom: string;
+  windowTo: string;
+  checkedAt?: string;
+  orders: PurchaseOrder[];
+  error?: string;
+}

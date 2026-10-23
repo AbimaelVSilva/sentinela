@@ -49,8 +49,13 @@ export interface BusEvents {
   };
   /** Novo evento classificado. Público via SSE. */
   'event.created': { cameraId: string; event: EventDto } & EventPlace;
-  /** Evento existente atualizado (ex.: vídeo da passagem ficou pronto). Público via SSE. */
-  'event.updated': { cameraId: string; event: EventDto };
+  /**
+   * Evento existente atualizado (vídeo pronto, compras conferidas). Público via SSE.
+   * `notify`: o alerta só deve tocar/avisar agora (ex.: esperava a conferência de compras).
+   */
+  'event.updated': { cameraId: string; event: EventDto } & Partial<EventPlace> & {
+      notify?: boolean;
+    };
   /** Interno: configuração da câmera mudou (ROI, monitoramento, baseline, key). */
   'camera.updated': { cameraId: string };
   /** Interno: câmera removida. */

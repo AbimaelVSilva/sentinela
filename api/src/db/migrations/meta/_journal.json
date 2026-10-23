@@ -50,6 +50,13 @@
       "when": 1792706724786,
       "tag": "0006_multi_camera",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792717079354,
+      "tag": "0007_klavi_purchases",
+      "breakpoints": true
     }
   ]
 }

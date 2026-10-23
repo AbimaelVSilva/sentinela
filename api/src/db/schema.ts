@@ -17,6 +17,7 @@ import type {
   AnalysisMode,
   Comparison,
   Inventory,
+  PurchaseCheck,
   RemovalCheck,
   RoiPolygon,
   SceneValidationResult,
@@ -49,6 +50,8 @@ export const stores = pgTable('stores', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   address: text('address'),
+  /** Filiais da Klavi desta loja (vendas do totem); vazio = sem integração. */
+  klaviBranchIds: jsonb('klavi_branch_ids').$type<string[]>(),
   ...timestamps,
 });
 
@@ -123,6 +126,8 @@ export const events = pgTable(
     clipDuration: real('clip_duration'),
     /** Quando o vídeo foi apagado pela retenção (ex.: "sem alteração" após 24 h). */
     clipDeletedAt: timestamp('clip_deleted_at', { withTimezone: true }),
+    /** Compras na loja durante a passagem (±margem), conferidas na Klavi. */
+    purchase: jsonb('purchase').$type<PurchaseCheck>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('events_camera_created_idx').on(t.cameraId, sql`${t.createdAt} desc`)],

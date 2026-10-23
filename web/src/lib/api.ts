@@ -239,6 +239,36 @@ export interface SentinelaEvent {
   clip: { url: string; durationSeconds: number | null; expiresAt: string | null } | null;
   /** Quando o vídeo foi apagado pela retenção. */
   clipDeletedAt: string | null;
+  /** Compras na loja durante a passagem (null = loja sem integração com a Klavi). */
+  purchase: PurchaseCheck | null;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  seq: number | null;
+  createdAt: string;
+  total: number;
+  paid: boolean;
+  paymentMethod: string | null;
+  customerName: string | null;
+  /** CPF mascarado (ex.: 071.***.***-92). */
+  cpf: string | null;
+  items: { title: string; quantity: number; price: number }[];
+}
+
+export interface PurchaseCheck {
+  status: 'pending' | 'found' | 'none' | 'error';
+  windowFrom: string;
+  windowTo: string;
+  checkedAt?: string;
+  orders: PurchaseOrder[];
+  error?: string;
+}
+
+export interface KlaviBranch {
+  id: string;
+  name: string;
+  active: boolean;
 }
 
 export interface StoreCamera extends Camera {
@@ -249,6 +279,8 @@ export interface Store {
   id: string;
   name: string;
   address: string | null;
+  /** Filiais da Klavi vinculadas (vendas do totem). */
+  klaviBranchIds: string[];
   createdAt: string;
   updatedAt: string;
   cameras: StoreCamera[];
@@ -263,6 +295,7 @@ export interface EventsPage {
 export interface StoreInput {
   name: string;
   address?: string | null;
+  klaviBranchIds?: string[];
 }
 export interface CameraInput {
   name: string;
@@ -378,6 +411,12 @@ export const api = {
     return apiFetch<EventsPage>(`/cameras/${cameraId}/events?${q}`);
   },
   getEvent: (id: string) => apiFetch<SentinelaEvent>(`/events/${id}`),
+  checkPurchases: (id: string) =>
+    apiFetch<SentinelaEvent>(`/events/${id}/purchases`, { method: 'POST' }),
+  getKlavi: () =>
+    apiFetch<{ configured: boolean; branches: KlaviBranch[]; error?: string }>(
+      '/integrations/klavi',
+    ),
   listAlerts: () => apiFetch<{ items: AlertItem[] }>('/alerts?limit=30'),
 
   getSettings: () => apiFetch<AppSettings>('/settings'),
@@ -396,6 +435,7 @@ export const queryKeys = {
   calibration: (cameraId: string) => ['cameras', cameraId, 'calibration'] as const,
   settings: ['settings'] as const,
   alerts: ['alerts'] as const,
+  klavi: ['integrations', 'klavi'] as const,
   me: ['auth', 'me'] as const,
   users: ['users'] as const,
   models: (provider: string) => ['settings', 'models', provider] as const,

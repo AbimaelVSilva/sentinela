@@ -5,6 +5,7 @@ import {
   FilmIcon,
   HistoryIcon,
   LoaderCircleIcon,
+  ShoppingCartIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
@@ -251,6 +252,19 @@ function StepItem({
           {event.clip && (
             <span className="inline-flex items-center gap-1" title="Tem vídeo da passagem">
               <FilmIcon className="size-3" /> vídeo
+            </span>
+          )}
+          {event.purchase?.status === 'found' && (
+            <span className="inline-flex items-center gap-1 text-severity-attention">
+              <ShoppingCartIcon className="size-3" />
+              {event.purchase.orders.length === 1
+                ? (event.purchase.orders[0]!.customerName ?? 'compra')
+                : `${event.purchase.orders.length} compras`}
+            </span>
+          )}
+          {event.purchase?.status === 'pending' && (
+            <span className="inline-flex items-center gap-1">
+              <LoaderCircleIcon className="size-3 animate-spin" /> conferindo vendas
             </span>
           )}
         </p>

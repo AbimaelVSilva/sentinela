@@ -1,6 +1,7 @@
 import { env } from '../../config/env';
 import type { EventRow, EventSeverity, EventType, Snapshot } from '../../db/schema';
-import { EVENT_META } from '../../domain/classification';
+import { eventMeta } from '../../domain/classification';
+import type { PurchaseCheck } from '../../domain/types';
 import { fileUrl } from '../../storage';
 
 export interface SnapshotDto {
@@ -31,6 +32,8 @@ export interface EventDto {
   clip: { url: string; durationSeconds: number | null; expiresAt: string | null } | null;
   /** Quando o vídeo foi apagado pela retenção (null se nunca foi). */
   clipDeletedAt: string | null;
+  /** Compras na loja durante a passagem (null = loja sem integração com a Klavi). */
+  purchase: PurchaseCheck | null;
 }
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -61,7 +64,7 @@ export function serializeEvent(
     cameraId: e.cameraId,
     type: e.type,
     severity: e.severity,
-    label: EVENT_META[e.type].label,
+    label: eventMeta(e.type, e.purchase).label,
     personEnteredAt: iso(e.personEnteredAt),
     personLeftAt: iso(e.personLeftAt),
     durationSeconds: duration,
@@ -85,5 +88,6 @@ export function serializeEvent(
         }
       : null,
     clipDeletedAt: iso(e.clipDeletedAt),
+    purchase: e.purchase ?? null,
   };
 }

@@ -12,13 +12,14 @@ import {
   snapshots,
   stores,
 } from '../db/schema';
-import { classifyComparison, severityOf } from '../domain/classification';
+import { classifyComparison, eventMeta, severityOf } from '../domain/classification';
 import { regionFromCrop, regionToCrop, roiBoundingBox } from '../domain/geometry';
 import { resolveAnalysisSettings } from '../domain/analysis-settings';
 import { applyChanges } from '../domain/inventory';
 import type { Comparison, Inventory } from '../domain/types';
 import { bus, type EventPlace } from '../lib/bus';
 import { serializeEvent } from '../modules/events/serializer';
+import { initialPurchase, schedulePurchaseCheck } from '../modules/purchases/checker';
 import { readFile, saveFile } from '../storage';
 import { VisionError, type VisionProvider } from '../vision/provider';
 import { captureEventClip } from './clip';
@@ -208,13 +209,18 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
   }
 
   const createdAt = new Date();
+  // Loja integrada à Klavi: a conferência de compras fica pendente até a janela fechar.
+  const purchase =
+    type === 'analysis_failed'
+      ? null
+      : await initialPurchase(camera.storeId, input.personEnteredAt, input.personLeftAt);
   const [row] = await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(events)
       .values({
         cameraId,
         type,
-        severity: severityOf(type),
+        severity: eventMeta(type, purchase).severity,
         personEnteredAt: input.personEnteredAt,
         personLeftAt: input.personLeftAt,
         beforeSnapshotId: baseline.snapshot.id,
@@ -222,6 +228,7 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
         summary,
         details,
         sceneDiffScore: score,
+        purchase,
         createdAt,
       })
       .returning();
@@ -239,6 +246,7 @@ export async function runComparison(input: ComparisonInput): Promise<EventType |
 
   const dto = serializeEvent(row!, baseline.snapshot, afterSnap);
   bus.emit('event.created', { cameraId, event: dto, ...(await eventPlace(camera)) });
+  if (purchase) schedulePurchaseCheck(row!.id, new Date(purchase.windowTo), log);
   // Vídeo da passagem em segundo plano (não atrasa o próximo ciclo de análise).
   void captureEventClip({
     eventId: row!.id,

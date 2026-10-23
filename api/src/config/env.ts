@@ -65,6 +65,14 @@ const EnvSchema = z.object({
   SCENE_DIFF_MIN: num(0.004),
   MAX_OCCLUSION_SECONDS: num(600),
   STABLE_MAX_WAIT_SECONDS: num(15),
+  /** Klavi (vendas do totem): cruza cada ocorrência com as compras da loja. */
+  KLAVI_API_URL: z.string().url().default('https://api.klavi.app.br'),
+  KLAVI_USERNAME: z.string().optional().default(''),
+  KLAVI_PASSWORD: z.string().optional().default(''),
+  /** Margem (s) antes da entrada e depois da saída da pessoa para procurar compras. */
+  KLAVI_WINDOW_SECONDS: num(60),
+  /** Espera extra (s) depois do fim da janela, para o pedido do totem chegar à API. */
+  KLAVI_CHECK_DELAY_SECONDS: num(20),
   /** Modo padrão das câmeras: full (identifica o produto) ou removal (só "saiu algo?"). */
   ANALYSIS_MODE: z.enum(['full', 'removal']).default('full'),
   /** Maior lado (px) das fotos enviadas à IA na comparação antes/depois. */
